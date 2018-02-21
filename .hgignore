@@ -1,0 +1,24 @@
+syntax: glob
+*.cmi
+*.cmo
+*.output
+*.o
+tools/nclex.ml
+tools/ncparse.ml
+tools/ncparse.mli
+tools/nodexp
+tools/r86lex.ml
+tools/r86parse.ml
+tools/r86parse.mli
+tools/risc86
+lib/common.cma
+lexer.ml
+parser.ml
+parser.mli
+ppc-amd64
+ppc-arm
+ppc-mips
+ppc-risc86
+b.out
+b.s
+b.test
