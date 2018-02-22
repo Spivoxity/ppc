@@ -7,6 +7,7 @@ PPC-armv7l = ppc-arm
 ASFLAGS-armv7l = -march=armv6
 
 PPC-mips = ppc-mips
+ASFLAGS-mips = -msoft-float
 
 PPC := $(PPC-$(HOST))
 PPCFLAGS := $(PPCFLAGS-$(HOST))
