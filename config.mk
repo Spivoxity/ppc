@@ -1,11 +1,16 @@
 HOST := $(shell uname -m)
 
 PPC-x86_64 = ppc-amd64
-PPC-arm = ppc-arm
+PPCFLAGS-x86_64 = -pic
+
+PPC-armv7l = ppc-arm
+ASFLAGS-armv7l = -march=armv6
+
 PPC-mips = ppc-mips
 
 PPC := $(PPC-$(HOST))
-AS_FLAGS := $(AS_FLAGS-$(HOST))
+PPCFLAGS := $(PPCFLAGS-$(HOST))
+ASFLAGS := $(ASFLAGS-$(HOST))
 
 ifndef PPC
     $(error Can't configure for host type $(HOST))

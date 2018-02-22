@@ -68,8 +68,8 @@ test1 : $(TESTSRC:%=test1-%)
 
 test1-% : pas0.o force
 	@echo "*** Test $*.p"
-	./$(PPC) -pic -d 1 $(OPT) test/$*.p >b.s
-	as $(AS_FLAGS) b.s -o b.o
+	./$(PPC) $(PPCFLAGS) -d 1 $(OPT) test/$*.p >b.s
+	as $(ASFLAGS) b.s -o b.o
 	gcc b.o pas0.o -o b.out 
 	./b.out >b.test
 	sed -n $(SCRIPT2) test/$*.p | diff - b.test
