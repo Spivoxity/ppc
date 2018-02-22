@@ -1,6 +1,8 @@
 # ppcu/Makefile
 
-all: ppc-mips ppc-arm ppc-risc86 ppc-amd64
+include config.mk
+
+all: $(PPC)
 
 TOOLS = tools
 
@@ -34,19 +36,20 @@ lexer.ml: lexer.mll
 
 MLFLAGS = -I lib
 
-$(TOOLS)/nodexp $(TOOLS)/pibake: $(TOOLS)/%: 
-	$(MAKE) -C $(TOOLS) $*
+$(TOOLS)/nodexp:
+	$(MAKE) -C $(TOOLS) $(@F)
 
 test: force
 	@echo "Say..."
-	@echo "  'make test0' to compare assembly code"
-	@echo "  'make test1' to test the AMD64 backend"
+	@echo "  'make test0'  to compare assembly code for ARM"
+	@echo "  'make test1'  to test the native backend"
+	@echo "  'make test2a' to test with qemu-arm"
+	@echo "  'make test2n' to test with qemu-mips"
 
 EXCLUDE = nasty
 ALLSRC := $(shell ls test/*.p)
 TESTSRC := $(filter-out $(EXCLUDE),$(basename $(notdir $(ALLSRC))))
 OPT = -O2
-test1r-%: OPT = -O
 
 SCRIPT1 = -e '1,/^(\*\[\[/d' -e '/^]]\*)/q' -e p
 SCRIPT2 = -e '1,/^(\*<</d' -e '/^>>\*)/q' -e p
@@ -54,23 +57,20 @@ SCRIPT2 = -e '1,/^(\*<</d' -e '/^>>\*)/q' -e p
 # test0 -- compile tests and diff object code
 test0 : $(TESTSRC:%=test0-%)
 
-test0-%: force
+test0-%: ppc-arm force
 	@echo "*** Test $*.p"
-	./ppc $(OPT) test/$*.p >b.s
+	./ppc-arm $(OPT) test/$*.p >b.s
 	-sed -n $(SCRIPT1) test/$*.p | diff -u -b - b.s
 	@echo
 
 # test1 -- compile tests and execute with QEMU-mips
 test1 : $(TESTSRC:%=test1-%)
-test1x : $(TESTSRC:%=test1x-%)
-test1m : $(TESTSRC:%=test1m-%)
-test1a : $(TESTSRC:%=test1a-%)
-test1r : $(TESTSRC:%=test1r-%)
 
 test1-% : pas0.o force
 	@echo "*** Test $*.p"
-	./ppc-amd64 -pic -d 1 $(OPT) test/$*.p >b.s
-	gcc b.s pas0.o -o b.out 
+	./$(PPC) -pic -d 1 $(OPT) test/$*.p >b.s
+	as $(AS_FLAGS) b.s -o b.o
+	gcc b.o pas0.o -o b.out 
 	./b.out >b.test
 	sed -n $(SCRIPT2) test/$*.p | diff - b.test
 	@echo "*** Passed"; echo
@@ -78,19 +78,22 @@ test1-% : pas0.o force
 pas0.o : pas0.c
 	gcc -c pas0.c
 
-test1r-% : pas0-risc86.o force
+test2a : $(TESTSRC:%=test2a-%)
+test2m : $(TESTSRC:%=test2m-%)
+
+test2a-% : ppc-arm pas0-arm.o force
 	@echo "*** Test $*.p"
-	./ppc-risc86 $(OPT) test/$*.p >b.ss
-	../tools/risc86 <b.ss >b.s
-	gcc -m32 b.s pas0-risc86.o -o b.out 
-	./b.out >b.test
+	./ppc-arm -d 1 $(OPT) test/$*.p >b.s
+	arm-linux-gnueabihf-gcc -marm -march=armv6 \
+		b.s pas0-arm.o -static -o b.out 
+	qemu-arm ./b.out >b.test
 	sed -n $(SCRIPT2) test/$*.p | diff - b.test
 	@echo "*** Passed"; echo
 
-pas0-risc86.o : pas0.c
-	gcc -m32 -c $< -o $@
+pas0-arm.o: pas0.c
+	$(GCC-ARM) -c $< -o $@
 
-test1m-%: pas0-mips.o force
+test2m-% : ppc-mips pas0-mips.o force
 	@echo "*** Test $*.p"
 	./ppc-mips $(OPT) test/$*.p >b.s
 	mipsel-linux-gnu-as b.s -o b.o
@@ -102,23 +105,10 @@ test1m-%: pas0-mips.o force
 pas0-mips.o: pas0.c
 	mipsel-linux-gnu-gcc -fno-pic -c $< -o $@
 
-GCC-ARM = arm-linux-gnueabihf-gcc -marm -march=armv6
-
-test1a-%: pas0-arm.o force
-	@echo "*** Test $*.p"
-	./ppc-arm -d 2 $(OPT) test/$*.p >b.s
-	$(GCC-ARM) b.s pas0-arm.o -static -o b.out 
-	qemu-arm ./b.out >b.test
-	sed -n $(SCRIPT2) test/$*.p | diff - b.test
-	@echo "*** Passed"; echo
-
-pas0-arm.o: pas0.c
-	$(GCC-ARM) -c $< -o $@
-
 promote: $(TESTSRC:%=promote-%)
 
 promote-%: force
-	./ppc $(OPT) test/$*.p >b.s
+	./ppc-arm $(OPT) test/$*.p >b.s
 	sed -f promote.sed test/$*.p >test/$*.new
 	mv test/$*.new test/$*.p
 
@@ -130,7 +120,7 @@ ML = $(MLGEN) optree.ml tgen.ml tgen.mli simp.ml share.ml share.mli \
 	jumpopt.ml check.ml check.mli dict.ml dict.mli lexer.mli \
 	main.ml main.mli optree.mli tree.ml coder.mli coder.ml \
 	tree.mli util.ml mips.ml simp.mli target.mli \
-	regs.mli regs.ml jumpopt.mli arm.ml risc86.ml amd64.ml amdx.ml
+	regs.mli regs.ml jumpopt.mli arm.ml risc86.ml amd64.ml
 
 clean: force
 	rm -f *.cmi *.cmo *.o *.output
@@ -145,10 +135,8 @@ CC = gcc
 
 ###
 
-amd64.cmo : target.cmi regs.cmi optree.cmi main.cmi
-amd64.cmx : target.cmi regs.cmx optree.cmx main.cmx
-amdx.cmo : target.cmi regs.cmi optree.cmi main.cmi
-amdx.cmx : target.cmi regs.cmx optree.cmx main.cmx
+amd64.cmo : util.cmo target.cmi regs.cmi optree.cmi main.cmi
+amd64.cmx : util.cmx target.cmi regs.cmx optree.cmx main.cmx
 arm.cmo : target.cmi regs.cmi optree.cmi main.cmi
 arm.cmx : target.cmi regs.cmx optree.cmx main.cmx
 check.cmo : util.cmo tree.cmi target.cmi optree.cmi dict.cmi check.cmi
@@ -166,9 +154,9 @@ jumpopt.cmi : optree.cmi
 lexer.cmo : util.cmo parser.cmi optree.cmi dict.cmi lexer.cmi
 lexer.cmx : util.cmx parser.cmx optree.cmx dict.cmx lexer.cmi
 lexer.cmi : parser.cmi optree.cmi dict.cmi
-main.cmo : tgen.cmi tree.cmi target.cmi parser.cmi lexer.cmi dict.cmi \
+main.cmo : tree.cmi tgen.cmi target.cmi parser.cmi lexer.cmi dict.cmi \
     coder.cmi check.cmi main.cmi
-main.cmx : tgen.cmx tree.cmx target.cmi parser.cmx lexer.cmx dict.cmx \
+main.cmx : tree.cmx tgen.cmx target.cmi parser.cmx lexer.cmx dict.cmx \
     coder.cmx check.cmx main.cmi
 main.cmi : target.cmi
 mips.cmo : target.cmi regs.cmi optree.cmi main.cmi
@@ -191,13 +179,13 @@ simp.cmo : util.cmo optree.cmi simp.cmi
 simp.cmx : util.cmx optree.cmx simp.cmi
 simp.cmi : optree.cmi
 target.cmi : optree.cmi
-tree.cmo : optree.cmi dict.cmi tree.cmi
-tree.cmx : optree.cmx dict.cmx tree.cmi
-tree.cmi : optree.cmi dict.cmi
 tgen.cmo : tree.cmi target.cmi optree.cmi lexer.cmi dict.cmi coder.cmi \
     tgen.cmi
 tgen.cmx : tree.cmx target.cmi optree.cmx lexer.cmx dict.cmx coder.cmx \
     tgen.cmi
 tgen.cmi : tree.cmi target.cmi
+tree.cmo : optree.cmi dict.cmi tree.cmi
+tree.cmx : optree.cmx dict.cmx tree.cmi
+tree.cmi : optree.cmi dict.cmi
 util.cmo :
 util.cmx :
