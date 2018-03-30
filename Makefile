@@ -19,6 +19,9 @@ ppc-mips: $(COMMON) mips.cmo
 ppc-arm: $(COMMON) arm.cmo
 	ocamlc -g lib/common.cma $^ -o $@ 
 
+ppc-thumb: $(COMMON) thumb.cmo
+	ocamlc -g lib/common.cma $^ -o $@ 
+
 ppc-risc86: $(COMMON) risc86.cmo
 	ocamlc -g lib/common.cma $^ -o $@ 
 
@@ -44,6 +47,7 @@ test: force
 	@echo "  'make test0'  to compare assembly code for ARM"
 	@echo "  'make test1'  to test the native backend"
 	@echo "  'make test2a' to test with qemu-arm"
+	@echo "  'make test2t' to test with qemu-arm (thumb mode)"
 	@echo "  'make test2n' to test with qemu-mips"
 
 EXCLUDE = nasty
@@ -79,19 +83,38 @@ pas0.o : pas0.c
 	gcc -c pas0.c
 
 test2a : $(TESTSRC:%=test2a-%)
+test2t : $(TESTSRC:%=test2t-%)
 test2m : $(TESTSRC:%=test2m-%)
+
+GCC-ARM = arm-linux-gnueabihf-gcc -marm -march=armv6
 
 test2a-% : ppc-arm pas0-arm.o force
 	@echo "*** Test $*.p"
 	./ppc-arm -d 1 $(OPT) test/$*.p >b.s
-	arm-linux-gnueabihf-gcc -marm -march=armv6 \
-		b.s pas0-arm.o -static -o b.out 
+	$(GCC-ARM) b.s pas0-arm.o -static -o b.out 
 	qemu-arm ./b.out >b.test
 	sed -n $(SCRIPT2) test/$*.p | diff - b.test
 	@echo "*** Passed"; echo
 
 pas0-arm.o: pas0.c
 	$(GCC-ARM) -c $< -o $@
+
+GCC-THUMB = arm-linux-gnueabihf-gcc -marm -march=armv6 -mthumb-interwork
+
+THUMBFIX = : fix
+test2t-pprolog test2t-pascal test2t-sudoku: \
+	THUMBFIX = sed -i -f pprolog-fix b.s
+
+test2t-% : ppc-thumb pas0-thumb.o force
+	@echo "*** Test $*.p"
+	./ppc-thumb -d 1 $(OPT) test/$*.p >b.s
+	$(GCC-THUMB) b.s pas0-thumb.o -static -o b.out 
+	qemu-arm ./b.out >b.test
+	sed -n $(SCRIPT2) test/$*.p | diff - b.test
+	@echo "*** Passed"; echo
+
+pas0-thumb.o: pas0.c
+	$(GCC-THUMB) -c $< -o $@
 
 test2m-% : ppc-mips pas0-mips.o force
 	@echo "*** Test $*.p"
@@ -120,12 +143,12 @@ ML = $(MLGEN) optree.ml tgen.ml tgen.mli simp.ml share.ml share.mli \
 	jumpopt.ml check.ml check.mli dict.ml dict.mli lexer.mli \
 	main.ml main.mli optree.mli tree.ml coder.mli coder.ml \
 	tree.mli util.ml mips.ml simp.mli target.mli \
-	regs.mli regs.ml jumpopt.mli arm.ml risc86.ml amd64.ml
+	regs.mli regs.ml jumpopt.mli arm.ml risc86.ml amd64.ml thumb.ml
 
 clean: force
 	rm -f *.cmi *.cmo *.o *.output
 	rm -f $(MLGEN)
-	rm -f ppc-mips ppc-arm ppc-risc86 ppc-amd64 b.out b.s b.test
+	rm -f ppc-mips ppc-arm ppc-thumb ppc-risc86 ppc-amd64 b.out b.s b.test
 
 depend: $(ML) $(TOOLS)/nodexp force
 	(sed '/^###/q' Makefile; echo; ocamldep -pp $(TOOLS)/nodexp $(ML)) >new
@@ -184,6 +207,8 @@ tgen.cmo : tree.cmi target.cmi optree.cmi lexer.cmi dict.cmi coder.cmi \
 tgen.cmx : tree.cmx target.cmi optree.cmx lexer.cmx dict.cmx coder.cmx \
     tgen.cmi
 tgen.cmi : tree.cmi target.cmi
+thumb.cmo : target.cmi regs.cmi optree.cmi main.cmi
+thumb.cmx : target.cmi regs.cmx optree.cmx main.cmx
 tree.cmo : optree.cmi dict.cmi tree.cmi
 tree.cmx : optree.cmx dict.cmx tree.cmi
 tree.cmi : optree.cmi dict.cmi

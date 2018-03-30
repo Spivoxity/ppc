@@ -28,3 +28,6 @@ let rec accum f ys a =
   match ys with
       [] -> a
     | x::xs -> accum f xs (f x a)
+
+(* |maximum xs| returns the maximum of xs, or zero for [] *)
+let maximum xs = List.fold_left max 0 xs

@@ -122,7 +122,7 @@ end;
 
 var infile: array 3000 of char; pin, pout: integer;
 
-proc prog(line: array 60 of char);
+proc prog(line: array 61 of char);
   var i: integer;
 begin
   for i := 0 to 59 do
@@ -234,7 +234,7 @@ begin
   return p
 end;
 
-type keyword = array 8 of char;
+type keyword = array 9 of char;
 
 (* |Enter| -- define a built-in symbol *)
 proc Enter(name: keyword; arity: integer; action: integer): symbol;

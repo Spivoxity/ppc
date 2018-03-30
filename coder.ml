@@ -12,6 +12,8 @@ open Print
 let debug = ref 0
 let optlevel = ref 0
 
+let outgoing = ref 0
+
 module F(Tgt : Target.T) = struct
   module Alloc = Tgt.Alloc
   module Emitter = Tgt.Emitter
@@ -22,18 +24,18 @@ module F(Tgt : Target.T) = struct
   module IQueue = struct
     type operand = Emitter.operand
 
-    (* The instructions are interspersed with labels and comments *)
+    (* Instructions are interspersed with labels and comments *)
     type item = 
         Instr of string * Emitter.operand list 
       | Label of Optree.codelab
       | Comment of string
       | Tree of Optree.optree
 
-    (* Output a queue item *)
+  (* Output a queue item *)
     let put_item =
       function
           Instr (op, rands) -> Emitter.put_inst op rands
-        | Label lab -> Emitter.put_label lab
+        | Label lab -> printf ".$:\n" [fLab lab]
         | Comment cmnt -> printf "$$\n" [fStr Emitter.comment; fStr cmnt] 
         | Tree t -> Optree.print_optree Emitter.comment t
 
@@ -51,10 +53,16 @@ module F(Tgt : Target.T) = struct
         emit_comment (Source.get_line n);
       line := n
 
+    let rewriter = ref (fun q -> q)
+
+    let set_rewriter f =
+      rewriter := f
+
     (* |end_proc| -- output procedure fragment, perhaps after error *)
     let end_proc () =
+      let code' = !rewriter code in
       Emitter.prelude ();
-      Queue.iter put_item code;
+      Queue.iter put_item code';
       Emitter.postlude();
       Queue.clear code
 
@@ -192,6 +200,12 @@ module F(Tgt : Target.T) = struct
       function <op, @args> -> <op, @(List.map do_tree args)> in
     Optree.canon <SEQ, @(List.map do_root code)>
 
+  let rec max_params =
+    function
+      <w, @args> ->
+        let x = match w with CALL n | CALLW n | CALLQ n -> n | _ -> 0 in
+        max x (Util.maximum (List.map max_params args))
+
   let show label code =
     if !debug > 1 then begin
       printf "$$:\n" [fStr Emitter.comment; fStr label];
@@ -202,8 +216,8 @@ module F(Tgt : Target.T) = struct
 
   (* |translate| -- translate a procedure body *)
   let translate lab level nargs fsize nregv code =
-    Emitter.start_proc lab level nargs fsize;
     Alloc.reset (); Alloc.get_regvars nregv;
+    Alloc.set_outgoing (Util.maximum (List.map max_params code));
 
     let code0 = show "Initial code" code in
     let code1 = if !optlevel < 1 then code0 else
@@ -214,6 +228,7 @@ module F(Tgt : Target.T) = struct
       else
         show "After sharing" (Share.traverse code1) in
 
+    Emitter.start_proc lab level nargs fsize;
     (try List.iter process (flatten code2) with exc -> 
       (* Code generation failed, but let's see how far we got *)
       IQueue.end_proc (); raise exc);

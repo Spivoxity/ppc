@@ -44,11 +44,11 @@ end;
 begin
   N := 0;
 
-  store("bill      ", 23);
-  store("george    ", 34);
+  store("bill     ", 23);
+  store("george   ", 34);
 
-  print_num(recall("george    ")); newline();
-  print_num(recall("fred      ")); newline()
+  print_num(recall("george   ")); newline();
+  print_num(recall("fred     ")); newline()
 end.
 
 (*<<

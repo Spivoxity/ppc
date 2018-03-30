@@ -163,7 +163,7 @@ and expr_type e env =
         end
     | IntConst n -> e.e_value <- Some n; Types.integer
     | CharConst c -> e.e_value <- Some (int_of_char c); Types.character
-    | String (lab, n) -> row n Types.character
+    | String (lab, n) -> row (n+1) Types.character
     | Nil -> Types.addrtype
     | FuncCall (p, args) -> 
         let v = ref None in
@@ -485,7 +485,7 @@ and check_decl d env =
 	begin
 	  match e.e_guts with
 	      String (lab, n) ->
-		let t = row n Types.character in
+		let t = row (n+1) Types.character in
 		let d = make_def x StringDef t in
 		d.d_addr <- Global lab;
 		add_def d env

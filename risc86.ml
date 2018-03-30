@@ -40,6 +40,7 @@ module RISC86 = struct
     let stat_link = -4
     let nregvars = 0
     let share_globals = false
+    let hot_share = true
 
     let reg_names =
       [| "%0"; "%1"; "%2"; "%3"; "%4"; "%5"; "%bp"; "%sp" |]
@@ -187,9 +188,6 @@ module RISC86 = struct
       match rands with
           [] -> printf "\t$\n" [fStr op]
         | _ ->  printf "\t$ $\n" [fStr op; fList(fRand) rands]
-
-    let put_label lab =
-      printf ".$:\n" [fLab lab]
 
     let comment = "! "
   end (* Emitter *)
@@ -358,7 +356,7 @@ module RISC86 = struct
             emit "bae" [v1; Const n; Label deflab];
             let v2 = gen_reg "ldw" [anyreg; Index (lab1, 0, reg_of v1, 2)] in
             gen "jmp" [Offset (0, reg_of v2)];
-            put_jumptab lab1 table;
+            put_jumptab lab1 table
 
         | <ARG i, t1> ->
             let v1 = eval_rand t1 in

@@ -124,6 +124,13 @@ let reset () =
   let zero x = (x := 0) in List.iter (refcount zero) pool;
   disabled := []
 
+let outg = ref 0
+
+let set_outgoing n =
+  outg := n
+
+let outgoing () = !outg
+
 let fReg =
   function
       Reg i -> fStr reg_names.(i)

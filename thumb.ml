@@ -1,13 +1,13 @@
-(* ppcu/arm.ml *)
+(* ppcu/thumb.ml *)
 (* Copyright (c) 2017--18 J. M. Spivey *)
 
-(* Code generator for ARM *)
+(* Code generator for ARM/Thumb *)
 
 open Target
 open Print
 open Optree
 
-module ARM = struct
+module Thumb = struct
   module Metrics = struct
     let int_rep = { r_size = 4; r_align = 4 }
     let char_rep = { r_size = 1; r_align = 1 }
@@ -26,16 +26,13 @@ module ARM = struct
           arg 4  /
           arg 3  \
                   > Saved by prolog
-     +40  arg 0  /
+     +20  arg 0  /
           ----------------
-     +36  return address
-     +32  saved sp
-     +28  dynamic link
-     +24  static link
-     +20  saved r9
-          ...
+     +16  return address
+     +12  saved r7
+      +8  saved r6
       +4  saved r5
-    fp:	  saved r4
+   vfp:	  saved r4
           ----------------
       -4  local 1
           ...
@@ -47,21 +44,19 @@ module ARM = struct
     sp:   outgoing arg 4
     *)
 
-    let param_base = 40
+    let param_base = 20
     let local_base lev = 0
-    let stat_link = 24
-    let nregvars = 3
+    let stat_link = 12
+    let nregvars = 0
     let share_globals = true
-    let share_heat = 2
+    let share_heat = 0
 
     (* ARM register assignments:
 
        R0-3   arguments + scratch
-       R4-R9  callee-save temps
-       R10    static link
-       R11=fp frame pointer
+       R4-R6  callee-save temps
+       R7     static link
        R12=sp stack pointer
-       R13=ip temp for linkage
        R14=lr link register
        R15=pc program counter 
 
@@ -72,14 +67,12 @@ module ARM = struct
           "r8"; "r9"; "r10"; "fp"; "sp"; "ip"; "lr"; "pc" |]
 
     let reg i = Reg i
-    let r_fp = Reg 11
     let r_sp = Reg 12
-    let r_ip = Reg 13
     let r_lr = Reg 14
     let r_pc = Reg 15
 
-    let volatile = [reg 0; reg 1; reg 2; reg 3; reg 10]
-    let stable = [reg 4; reg 5; reg 6; reg 7; reg 8; reg 9]
+    let volatile = [reg 0; reg 1; reg 2; reg 3; reg 7]
+    let stable = [reg 4; reg 5; reg 6]
   end
 
   module Alloc = Regs.AllocF(Metrics)
@@ -88,19 +81,31 @@ module ARM = struct
   open Alloc
 
   module Emitter = struct
+    let space = ref 0
+
     (* |operand| -- type of operands for assembly instructions *)
     type operand =		  (* VALUE	  ASM SYNTAX       *)
         Const of int 		  (* val	  #val	           *)
       | Register of reg		  (* [reg]	  reg	           *)
       | Shift of reg * int        (* [reg]<<n     reg, LSL #n      *)
       | Index of reg * int   	  (* [reg]+val    [reg, #val]      *)
-      | Index2 of reg * reg * int (* [r1]+[r2]<<n [r1, r2, LSL #n] *)
+      | Index2 of reg * reg       (* [r1]+[r2]    [r1, r2]         *)
       | Global of symbol	  (* lab	  lab	           *)
       | Label of codelab	  (* lab	  lab              *)
       | Literal of symbol * int   (* lab+val	  =lab+val         *)
 
+    let reg_of =
+      function
+          Register r -> r
+        | _ -> failwith "reg_of"
+
     let anyreg = Register R_any
     let anytemp = Register R_temp
+    let suggest r =
+      match reg_of r with
+          Reg i -> Register (R_suggest i)
+        | R_temp -> anytemp
+        | _ -> anyreg
 
     let map_regs f =
       function
@@ -108,15 +113,10 @@ module ARM = struct
         | Register r -> Register (f r)
         | Shift (r, n) -> Shift (f r, n)
         | Index (r, n) -> Index (f r, n)
-        | Index2 (r1, r2, n) -> Index2 (f r1, f r2, n)
+        | Index2 (r1, r2) -> Index2 (f r1, f r2)
         | Global x -> Global x
         | Label lab -> Label lab
         | Literal (x, n) -> Literal (x, n)
-
-    let reg_of =
-      function
-          Register r -> r
-        | _ -> failwith "reg_of"
 
     let use_reg _ = ()
 
@@ -130,11 +130,8 @@ module ARM = struct
         | Index (reg, off) ->
             if off = 0 then fMeta "[$]" [fReg reg]
             else fMeta "[$, #$]" [fReg reg; fNum off]
-        | Index2 (r1, r2, n) ->
-            if n = 0 then
-              fMeta "[$, $]" [fReg r1; fReg r2]
-            else
-              fMeta "[$, $, LSL #$]" [fReg r1; fReg r2; fNum n]
+        | Index2 (r1, r2) ->
+            fMeta "[$, $]" [fReg r1; fReg r2]
         | Global lab -> fStr lab
         | Label lab -> fMeta ".$" [fLab lab]
         | Literal (x, n) ->
@@ -146,7 +143,13 @@ module ARM = struct
     (* |preamble| -- emit start of assembler file *)
     let preamble () =
       printf "@ picoPascal compiler output\n" [];
-      printf "\t.global pmain\n\n" []
+      printf "\t.syntax unified\n" [];
+      printf "\t.thumb\n" [];
+      printf "\t.global pmain\n\n" [];
+
+      printf "\t.macro caselab x, y\n" [];
+      printf "\t.hword \\x-\\y-4\n" [];
+      printf "\t.endm\n\n" []
 
     (* |postamble| -- finish the assembler file *)
     let postamble () =
@@ -187,37 +190,50 @@ module ARM = struct
     let put_global lab n =
       printf "\t.comm $, $, 4\n" [fStr lab; fNum n]
 
+    let proclab = ref ""
     let frame = ref 0
     let stack = ref 0
+    let nargs = ref 0
 
     (* |start_proc| -- emit start of procedure *)
-    let start_proc lab lev nargs fram =
-      segment Text;
-      printf "$:\n" [fStr lab];
-      printf "\tmov ip, sp\n" [];
-      if nargs > 0 then begin
-        let save = if nargs <= 2 then "{r0-r1}" else "{r0-r3}" in
-        printf "\tstmfd sp!, $\n" [fStr save]
-      end;
-      printf "\tstmfd sp!, {r4-r10, fp, ip, lr}\n" [];
-      printf "\tmov fp, sp\n" [];
-      frame := fram; stack := 0;
+    let start_proc lab lev na fram =
+      proclab := lab; frame := fram; nargs := na; stack := 0; 
       let ns = Alloc.outgoing () in
-      if ns > 4 then stack := 4*ns-16
-
-    let prelude () =
+      if ns > 4 then stack := 4*ns-16;
       (* Round up frame space for stack alignment *)
-      let space = 8 * ((!frame + !stack + 7)/8) in
-      if space <= 1024 then
+      space := 8 * ((!frame + !stack + 7)/8)
+
+    let adjsp op =
+      if !space <= 1024 then
         (* Since space is a multiple of 8, we can fit values up to 1024 *)
-        (if space > 0 then printf "\tsub sp, sp, #$\n" [fNum space])
+        (if !space > 0 then printf "\t$ sp, #$\n" [fStr op; fNum !space])
       else begin
-        printf "\tldr ip, =$\n" [fNum space];
-        printf "\tsub sp, sp, ip\n" []
+        printf "\tldr r3, =$\n" [fNum !space];
+        if op = "sub" then printf "\tnegs r3, r3\n" [];
+        printf "\tadd sp, r3\n" []
       end
 
+    let prelude () =
+      segment Text;
+      printf "\t.thumb_func\n" [];
+      printf "$:\n" [fStr !proclab];
+      if !nargs > 0 then begin
+        let save = if !nargs <= 2 then "{r0-r1}" else "{r0-r3}" in
+        printf "\tpush $\n" [fStr save]
+      end;
+      printf "\tpush {r4-r7, lr}\n" [];
+      adjsp "sub"
+
     let postlude () =
-      printf "\tldmfd fp, {r4-r10, fp, sp, pc}\n" [];
+      adjsp "add";
+      if !nargs = 0 then
+        printf "\t pop {r4-r7, pc}\n" []
+      else begin
+        printf "\tpop {r4-r7}\n" [];
+        printf "\tpop {r3}\n" [];
+        printf "\tadd sp, sp, #$\n" [fNum (if !nargs > 2 then 16 else 8)];
+        printf "\tbx r3\n" [];
+      end;
       printf "\t.ltorg\n" [];               (* Output the literal table *)
       printf "\n" []
 
@@ -235,25 +251,15 @@ module ARM = struct
     open IQueue
 
     let move_reg dst src =
-      ignore (gen_reg "mov" [Register dst; Register src])
+      ignore (gen_reg "movs" [Register dst; Register src])
 
     (* Tests for fitting in various immediate fields *)
 
-    (* |fits_offset| -- test for fitting in offset field of address *)
-    let fits_offset x = (-4096 < x && x < 4096)
+    (* |fits_immed3| -- test for fitting in immediate field *)
+    let fits_immed3 x = (x >= 0 && x < 4)
 
-    (* |fits_immed| -- test for fitting in immediate field *)
-    let fits_immed x =
-      (* A conservative approximation, using shifts instead of rotates *)
-      let rec reduce r =
-        if r land 3 <> 0 then r else reduce (r lsr 2) in
-      x = 0 || x > 0 && reduce x < 256
-
-    (* |fits_move| -- test for fitting in immediate move *)
-    let fits_move x = fits_immed x || fits_immed (lnot x)
-
-    (* |fits_add| -- test for fitting in immediate add *)
-    let fits_add x = fits_immed x || fits_immed (-x)
+    (* |fits_immed8| -- test for fitting in immediate field *)
+    let fits_immed8 x = (x >= 0 && x < 256)
 
     (* The main part of the code generator consists of a family of functions
        eval_X t, each generating code for a tree t, leaving the value in
@@ -266,8 +272,21 @@ module ARM = struct
       (* Binary operation *)
       let binary op t1 t2 =
         let v1 = eval_reg t1 anyreg in
-        let v2 = eval_rand t2 fits_immed in
-        gen_reg op [r; v1; v2]
+        let v2 = eval_reg t2 anyreg in
+        gen_reg ("*movs/" ^ op) [r; v1; v2]
+
+      and add_sub op t1 t2 =
+        match t2 with
+            <CONST n> when fits_immed3 n ->
+              let v1 = eval_reg t1 anyreg in
+              gen_reg op [r; v1; Const n]
+          | <CONST n> when fits_immed8 n ->
+              let v1 = eval_reg t1 (suggest r) in
+              gen_reg ("*movs/" ^ op) [r; v1; Const n]
+          | _ ->
+              let v1 = eval_reg t1 anyreg in
+              let v2 = eval_reg t2 anyreg in
+              gen_reg op [r; v1; v2]
 
       (* Unary operation *)
       and unary op t1 =
@@ -276,27 +295,46 @@ module ARM = struct
 
       (* Comparison with boolean result *)
       and compare op t1 t2 =
+        let lab = label () in
+        let v = gen_reg "movs" [r; Const 1] in
         let v1 = eval_reg t1 anyreg in
-        let v2 = eval_rand t2 fits_add in
+        let v2 = eval_reg t2 anyreg in
         gen "cmp" [v1; v2];
-        let v = gen_reg "mov" [r; Const 0] in
-        emit op [v; Const 1];
-        v in
+        emit op [Label lab];
+        emit "movs" [v; Const 0];
+        emit_lab lab;
+        v
+
+      and shift op t1 t2 =
+        match t2 with
+            <CONST n> when n >= 0 && n < 32 ->
+              let v1 = eval_reg t1 anyreg in
+              gen_reg op [r; v1; Const n]
+          | _ ->
+              let v1 = eval_reg t1 (suggest r) in
+              let v2 = eval_reg t2 anyreg in
+              gen_reg ("*movs/" ^ op) [r; v1; v2] in
 
       match t with
-          <CONST k> when fits_move k -> 
-            gen_reg "mov" [r; Const k]
+          <CONST k> when fits_immed8 k -> 
+            gen_reg "movs" [r; Const k]
         | <CONST k> ->
             gen_reg "ldr" [r; Literal ("", k)]
         | <NIL> ->
-            gen_reg "mov" [r; Const 0]
-        | <LOCAL 0> ->
-            gen_move "mov" [r; Register r_fp]
-        | <LOCAL n> when fits_add n ->
-            gen_reg "add" [r; Register r_fp; Const n]
+            gen_reg "movs" [r; Const 0]
+        | <LOCAL n> when fits_immed8 ((!space+n) / 4) ->
+            let a = (!space+n) mod 4 in
+            if a = 0 then
+              gen_reg "add" [r; Register r_sp; Const (!space+n)]
+            else begin
+              let v1 =
+                gen_reg "add" [anyreg; Register r_sp; Const (!space+n-a)] in
+              gen_reg "adds" [r; v1; Const a]
+            end
         | <LOCAL n> ->
-            emit "ldr" [Register r_ip; Literal ("", n)];
-            gen_reg "add" [r; Register r_fp; Register r_ip]
+            let v1 = gen_reg "ldr" [r; Literal ("", !space+n)] in
+            emit "add" [v1; Register r_sp];
+            v1
         | <GLOBAL x> ->
             gen_reg "ldr" [r; Literal (x, 0)]
         | <TEMPW n> ->
@@ -304,98 +342,83 @@ module ARM = struct
         | <(LOADW|LOADC), <REGVAR i>> ->
             let rv = regvar i in
             reserve_reg rv; gen_move "mov" [r; Register rv]
+        | <LOADW, <LOCAL n>> when !space+n < 1024 ->
+            gen_reg "ldr" [r; Index (r_sp, !space+n)]
         | <LOADW, t1> -> 
-            let v1 = eval_addr t1 in
+            let v1 = eval_addr 128 t1 in
             gen_reg "ldr" [r; v1]
         | <LOADC, t1> -> 
-            let v1 = eval_addr t1 in
+            let v1 = eval_addr 32 t1 in
             gen_reg "ldrb" [r; v1]
 
-        | <MONOP Uminus, t1> -> unary "neg" t1
+        | <MONOP Uminus, t1> -> unary "negs" t1
         | <MONOP Not, t1> -> 
-            let v1 = eval_reg t1 anyreg in
-            gen_reg "eor" [r; v1; Const 1]
-        | <MONOP BitNot, t1> -> unary "mvn" t1
+            let v1 = eval_reg t1 (suggest r) in
+            let v2 = gen_reg "movs" [anyreg; Const 1] in
+            gen_reg "*movs/eors" [r; v1; v2]
+        | <MONOP BitNot, t1> -> unary "mvns" t1
 
-        | <OFFSET, t1, <CONST n>> when fits_add n ->
-            (* Allow add for negative constants *)
-            let v1 = eval_reg t1 anyreg in
-            gen_reg "add" [r; v1; Const n]
-        | <OFFSET, t1, t2> -> binary "add" t1 t2
+        | <OFFSET, t1, t2> -> add_sub "adds" t1 t2
+        | <BINOP Plus, t1, t2> -> add_sub "adds" t1 t2
+        | <BINOP Minus, t1, t2> -> add_sub "subs" t1 t2
 
-        | <BINOP Plus, t1, t2> -> binary "add" t1 t2
-        | <BINOP Minus, t1, t2> -> binary "sub" t1 t2
-        | <BINOP And, t1, t2> -> binary "and" t1 t2
-        | <BINOP Or, t1, t2> -> binary "orr" t1 t2
-        | <BINOP Lsl, t1, t2> -> binary "lsl" t1 t2
-        | <BINOP Lsr, t1, t2> -> binary "lsr" t1 t2
-        | <BINOP Asr, t1, t2> -> binary "asr" t1 t2
-        | <BINOP BitAnd, t1, t2> -> binary "and" t1 t2
-        | <BINOP BitOr, t1, t2> -> binary "orr" t1 t2
+        | <BINOP And, t1, t2> -> binary "ands" t1 t2
+        | <BINOP Or, t1, t2> -> binary "orrs" t1 t2
+        | <BINOP BitAnd, t1, t2> -> binary "ands" t1 t2
+        | <BINOP BitOr, t1, t2> -> binary "orrs" t1 t2
+        | <BINOP Times, t1, t2> -> binary "muls" t1 t2
 
-        | <BINOP Times, t1, t2> ->
-            (* The mul instruction needs both operands in registers *)
-            let v1 = eval_reg t1 anyreg in
-            let v2 = eval_reg t2 anyreg in
-            gen_reg "mul" [r; v1; v2]
+        | <BINOP Lsl, t1, t2> -> shift "lsls" t1 t2
+        | <BINOP Lsr, t1, t2> -> shift "lsrs" t1 t2
+        | <BINOP Asr, t1, t2> -> shift "asrs" t1 t2
 
-        | <BINOP Eq, t1, t2> -> compare "moveq" t1 t2
-        | <BINOP Neq, t1, t2> -> compare "movne" t1 t2
-        | <BINOP Gt, t1, t2> -> compare "movgt" t1 t2
-        | <BINOP Geq, t1, t2> -> compare "movge" t1 t2
-        | <BINOP Lt, t1, t2> -> compare "movlt" t1 t2
-        | <BINOP Leq, t1, t2> -> compare "movle" t1 t2
+        | <BINOP Eq, t1, t2> -> compare "beq" t1 t2
+        | <BINOP Neq, t1, t2> -> compare "bne" t1 t2
+        | <BINOP Gt, t1, t2> -> compare "bgt" t1 t2
+        | <BINOP Geq, t1, t2> -> compare "bge" t1 t2
+        | <BINOP Lt, t1, t2> -> compare "blt" t1 t2
+        | <BINOP Leq, t1, t2> -> compare "ble" t1 t2
 
         | <BOUND, t1, t2> ->
+            let lab = label () in
             let v1 = eval_reg t1 r in
-            let v2 = eval_rand t2 fits_add in
+            let v2 = eval_reg t2 anyreg in
             release v2;
             emit "cmp" [v1; v2];
-            emit "ldrhs" [Register (reg 0); Literal ("", !line)];
-            emit "blhs" [Global "check"];
+            emit "blo" [Label lab];
+            emit "ldr" [Register (reg 0); Literal ("", !line)];
+            emit "bl" [Global "check"];
+            emit_lab lab;
             v1
 
         | <NCHECK, t1> ->
+            let lab = label () in
             let v1 = eval_reg t1 r in
             emit "cmp" [v1; Const 0];
-            emit "ldreq" [Register (reg 0); Literal ("", !line)];
-            emit "bleq" [Global "nullcheck"];
+            emit "bne" [Label lab];
+            emit "ldr" [Register (reg 0); Literal ("", !line)];
+            emit "bl" [Global "nullcheck"];
+            emit_lab lab;
             v1
 
         | <w, @args> ->
             failwith (sprintf "eval $" [fInst w])
 
-    (* |eval_rand| -- evaluate to form second operand *)
-    and eval_rand t fits =
-      (* returns |Const| or |Register| *)
-      match t with
-          <CONST k> when fits k -> Const k
-        | <NIL> -> Const 0
-        | <BINOP Lsl, t1, <CONST n>> when n < 32 ->
-            let v1 = eval_reg t1 anyreg in
-            Shift (reg_of v1, n)
-        | _ -> eval_reg t anyreg
-
     (* |eval_addr| -- evaluate to form an address for ldr or str *)
-    and eval_addr =
+    and eval_addr limit =
       (* returns |Index| or |Index2| *)
       function
-          <LOCAL n> when fits_offset n ->
-            Index (r_fp, n) 
-        | <LOCAL n> ->
-            let r = gen_reg "ldr" [anyreg; Literal ("", n)] in
-            Index2 (r_fp, reg_of r, 0)
-        | <OFFSET, t1, <CONST n>> when fits_offset n ->
+          <LOCAL n> ->
+            let a = (!space+n) mod 4 in
+            let v1 = eval_reg <LOCAL (n-a)> anyreg in
+            Index (reg_of v1, a)
+        | <OFFSET, t1, <CONST n>> when n >= 0 && n < limit ->
             let v1 = eval_reg t1 anyreg in
             Index (reg_of v1, n)
-        | <OFFSET, t1, <BINOP Lsl, t2, <CONST n>>> when n < 32 ->
-            let v1 = eval_reg t1 anyreg in
-            let v2 = eval_reg t2 anyreg in
-            Index2 (reg_of v1, reg_of v2, n)
         | <OFFSET, t1, t2> ->
             let v1 = eval_reg t1 anyreg in
             let v2 = eval_reg t2 anyreg in
-            Index2 (reg_of v1, reg_of v2, 0)
+            Index2 (reg_of v1, reg_of v2)
         | t ->
             let v1 = eval_reg t anyreg in
             Index (reg_of v1, 0)
@@ -409,16 +432,23 @@ module ARM = struct
             let v1 = eval_reg t anyreg in
             gen "blx" [v1]
 
+    let compare t1 t2 =
+      match t2 with
+          <CONST n> when fits_immed8 n ->
+            let v1 = eval_reg t1 anyreg in
+            gen "cmp" [v1; Const n]
+        | _ ->
+            let v1 = eval_reg t1 anyreg in
+            let v2 = eval_reg t2 anyreg in
+            gen "cmp" [v1; v2]
+
     let statlink = ref R_none
 
     (* |tran_stmt| -- generate code to execute a statement *)
     let tran_stmt t =
       (* Conditional jump *)
       let condj op lab t1 t2 =
-        let v1 = eval_reg t1 anyreg in
-        let v2 = eval_rand t2 fits_add in
-        gen "cmp" [v1; v2];
-        gen op [Label lab] in
+        compare t1 t2; gen op [Label lab] in
 
       (* Procedure call *)
       let call k t =
@@ -446,13 +476,16 @@ module ARM = struct
         | <(STOREW|STOREC), t1, <REGVAR i>> ->
             let rv = regvar i in
             release (eval_reg t1 (Register rv))
+        | <STOREW, t1, <LOCAL n>> when !space+n < 1024 ->
+            let v1 = eval_reg t1 anyreg in
+            gen "str" [v1; Index (r_sp, !space+n)]
         | <STOREW, t1, t2> -> 
             let v1 = eval_reg t1 anyreg in
-            let v2 = eval_addr t2 in
+            let v2 = eval_addr 128 t2 in
             gen "str" [v1; v2]
         | <STOREC, t1, t2> -> 
             let v1 = eval_reg t1 anyreg in
-            let v2 = eval_addr t2 in
+            let v2 = eval_addr 32 t2 in
             gen "strb" [v1; v2]
 
         | <RESULTW, t1> ->
@@ -470,15 +503,18 @@ module ARM = struct
         | <JUMPC (Neq, lab), t1, t2> -> condj "bne" lab t1 t2
 
         | <JCASE (table, deflab), t1> ->
-            (* This jump table code exploits the fact that on ARM, reading
-               the pc gives a value 8 bytes beyond the current instruction,
-               so in the ldrlo instruction below, pc points to the branch
-               table itself. *)
+            let base = label () and tbl = label () in
             let v1 = eval_reg t1 anyreg in
             emit "cmp" [v1; Const (List.length table)];
-            gen "ldrlo" [Register r_pc; Index2 (r_pc, reg_of v1, 2)];
-            gen "b" [Label deflab];
-            List.iter (fun lab -> emit ".word" [Label lab]) table
+            emit "bhs" [Label deflab];
+            let v2 = gen_reg "lsls" [anyreg; v1; Const 1] in
+            let v3 = gen_reg "adr" [anyreg; Label tbl] in
+            let v4 = gen_reg "ldrsh" [anyreg; Index2 (reg_of v3, reg_of v2)] in
+            emit_lab base;
+            gen "add" [Register r_pc; v4];
+            emit ".align 2" [];
+            emit_lab tbl;
+            List.iter (fun l -> emit "caselab" [Label l; Label base]) table
 
         | <ARG i, <TEMPW k>> when i < 4 ->
             (* Avoid annoying spill and reload if the value is a temp
@@ -496,16 +532,80 @@ module ARM = struct
             gen "str" [v1; Index (r_sp, 4*i-16)]
 
         | <STATLINK, t1> ->
-            let r = reg 10 in
+            let r = reg 7 in
             spill_temps move_reg [r];
             ignore (eval_reg t1 (Register r));
             statlink := r
 
         | <w, @ts> -> 
             failwith (sprintf "tran_stmt $" [fInst w])
+
+    let relax_branches q0 =
+      let changed = ref true in
+
+      let instr_size =
+        function "bl" -> 2 | _ -> 1 in
+
+      (* Find opposite of a branch or raise Not_found *)
+      let opposite =
+        function
+          | "beq" -> "bne" | "bne" -> "beq"
+          | "blt" -> "bge" | "bge" -> "blt"
+          | "bgt" -> "ble" | "ble" -> "bgt"
+          | "bhi" -> "bls" | "bls" -> "bhi"
+          | "blo" -> "bhs" | "bhs" -> "blo"
+          | _ -> raise Not_found in
+
+      let is_branch w = Util.can opposite w in
+
+      (* Make a map of label addresses *)
+      let make_map q =
+        let m = Hashtbl.create 37 in
+        let g addr =
+          function
+              Instr (w, _) -> addr + instr_size w
+            | Label lab -> Hashtbl.add m lab addr; addr
+            | _ -> addr in
+        ignore (Queue.fold g 0 q); m in
+
+      (* Then use the map to expand overlong branches *)
+      let pass q = begin
+        let m = make_map q in
+        let q1 = Queue.create () in
+        let h addr x =
+          match x with
+              Instr (w, [Label lab]) when is_branch w ->
+                let dest = Hashtbl.find m lab in
+                Queue.add (Comment (sprintf "Est: $" [fNum (dest-addr)])) q1;
+                if dest >= addr - 126 && dest < addr + 130 then
+                  Queue.add x q1
+                else begin
+                  changed := true;
+                  let lab1 = label () in
+                  Queue.add (Instr (opposite w, [Label lab1])) q1;
+                  Queue.add (Instr ("b", [Label lab])) q1;
+                  Queue.add (Label lab1) q1
+                end;
+                addr+1
+            | Instr (w, _) ->
+                Queue.add x q1; addr + instr_size w
+            | _ -> Queue.add x q1; addr in
+        ignore (Queue.fold h 0 q); q1
+      end in
+      
+      (* Iterate until no further change *)
+      let rec loop q =
+        if not !changed then q else begin
+          changed := false;
+          let q1 = pass q in loop q1
+        end in
+      loop q0
+
+    (* Install the rewriter *)
+    let _ = IQueue.set_rewriter relax_branches
   end (* Selector *)
 
   let options = []
-end (* ARM *)
+end (* Thumb *)
 
-module Compiler = Main.F(ARM)
+module Compiler = Main.F(Thumb)

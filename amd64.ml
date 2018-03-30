@@ -61,6 +61,7 @@ module AMD64 = struct
     let stat_link = -8
     let nregvars = 2
     let share_globals = false
+    let share_heat = 2
 
     (* Names the the 64-bit registers *)
     let reg_names =
@@ -292,9 +293,6 @@ module AMD64 = struct
         (List.rev (Util.take !nsaved stable));
       put_inst "popq" [reg64 rBP];
       put_inst "ret" []
-
-    let put_label lab =
-      printf ".$:\n" [fLab lab]
 
     let comment = "# "
   end (* Emitter *)

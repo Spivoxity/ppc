@@ -27,6 +27,7 @@ module type MetricsT = sig
   val stat_link : int		(* Offset of static link *)
   val nregvars : int		(* Number of register variables *)
   val share_globals : bool      (* Whether to use CSE on <GLOBAL x> *)
+  val share_heat : int		(* Whether to use CSE across jumps or calls *)
 
   val reg_names : string array
 
@@ -37,6 +38,11 @@ end
 (* Interface provided by the register allocator *)
 module type AllocT = sig
   val reset : unit -> unit
+
+  (* |set_outgoing| -- note maximum outgoing parameters *)
+  val set_outgoing : int -> unit
+
+  val outgoing : unit -> int
 
   val is_wildcard : reg -> bool
 
@@ -109,8 +115,7 @@ module type EmitterT = sig
   val postlude : unit -> unit
 
   val put_inst : string -> operand list -> unit
-  val put_label : Optree.codelab -> unit
-
+  
   (* |comment| -- Prefix for line-long comments *)
   val comment : string
 end  
@@ -138,6 +143,15 @@ module type IQueueT = sig
   val release : operand -> unit
 
   val line : int ref
+
+  (* Instructions are interspersed with labels and comments *)
+  type item = 
+      Instr of string * operand list 
+    | Label of Optree.codelab
+    | Comment of string
+    | Tree of Optree.optree
+
+  val set_rewriter : (item Queue.t -> item Queue.t) -> unit
 end
 
 (* Interface to the back-end instruction selector *)

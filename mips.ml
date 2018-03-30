@@ -32,9 +32,8 @@ module MIPS = struct
           local m                             V
           ----------------
           return address                      A
-          saved fp = dynamic link             |
           saved s7                            |
-          saved s6                           4*nsaved + 8
+          saved s6                           4*nsaved + 4
           saved s5                            |
     +16   saved s4                            |
     +12   saved s3                            |
@@ -55,6 +54,7 @@ module MIPS = struct
     let stat_link = -4
     let nregvars = 3
     let share_globals = true
+    let hot_share = true
 
     (* MIPS register assignments:
 
@@ -75,7 +75,8 @@ module MIPS = struct
       [| "$0"; "$at"; "$v0"; "$v1"; "$a0"; "$a1"; "$a2"; "$a3";
           "$t0"; "$t1"; "$t2"; "$t3"; "$t4"; "$t5"; "$t6"; "$t7";
           "$s0"; "$s1"; "$s2"; "$s3"; "$s4"; "$s5"; "$s6"; "$s7";
-          "$t8"; "$t9"; "$k0"; "$k1"; "$gp"; "$sp"; "$fp"; "$ra" |]
+          "$t8"; "$t9"; "$k0"; "$k1"; "$gp"; "$sp"; "$fp"; "$ra";
+          "$vfp" |]
 
     let r0 = Reg 0
     let rV i = Reg (2+i)
@@ -85,6 +86,7 @@ module MIPS = struct
     let r_sp = Reg 29
     let r_fp = Reg 30
     let r_ra = Reg 31
+    let r_vfp = Reg 32
 
     let volatile = [rT 0; rT 1; rT 2; rT 3; rT 4; rT 5; rT 6; rT 7; rV 0]
     let stable = [rS 0; rS 1; rS 2; rS 3; rS 4; rS 5; rS 6; rS 7]
@@ -96,6 +98,9 @@ module MIPS = struct
   open Alloc
 
   module Emitter = struct
+    (* |space| -- offset between $sp and virtual frame pointer *)
+    let space = ref 0
+
     (* |operand| -- type of operands for assembly instructions *)
     type operand =		     (* VALUE         ASM SYNTAX       *)
         Const of int 		     (* val	      val	       *)
@@ -132,7 +137,11 @@ module MIPS = struct
           Const v -> fNum v
         | Register reg -> fReg reg
         | Global x -> fStr x
-        | Offset (n, r) -> fMeta "$($)" [fOff n; fReg r]
+        | Offset (n, r) ->
+            if r = r_vfp then
+              fMeta "$($)" [fOff (!space+n); fReg r_sp]
+            else
+              fMeta "$($)" [fOff n; fReg r]
         | Index (x, r) -> fMeta "$($)" [fStr x; fReg r]
         | Label lab -> fMeta ".$" [fLab lab]
 
@@ -192,23 +201,22 @@ module MIPS = struct
     let nargs = ref 0
     let frame = ref 0
     let stack = ref 0
-    let space = ref 0
     let sbase = ref 0
     let max_reg = ref 0
     let nsaved = ref 0
-
-    let need_stack n =
-      stack := max n !stack
 
     let use_reg =
       function
           Reg i ->
             if i >= 16 && i < 24 then max_reg := max i !max_reg
-        | _ -> ()
+        | _ ->
+            failwith "use_reg"
 
     (* |start_proc| -- emit start of procedure *)
     let start_proc lab lev na fram =
-      proclab := lab; level := lev; nargs := na; stack := 16;
+      proclab := lab; level := lev; nargs := na;
+      stack := 4 * Alloc.outgoing ();
+      if !stack < 16 then stack := 16;
       frame := if lev > 0 then fram+4 else fram;
       max_reg := 0
 
@@ -220,39 +228,33 @@ module MIPS = struct
     let prelude () =
       (* Round up frame space for stack alignment *)
       nsaved := if !max_reg >= 16 then !max_reg - 15 else 0;
-      let locspace = !frame + 4 * !nsaved + 8 in
+      let locspace = !frame + !nsaved*4 + 4 in
       space := 8 * ((!stack + locspace + 7)/8);
       sbase := !space - locspace;
       segment Text;
       printf "$:\n" [fStr !proclab];
       put_inst "addu" [Register r_sp; Register r_sp; Const (- !space)];
-      put_inst "sw" [Register r_ra; Offset (!sbase + 4 * !nsaved + 4, r_sp)];
-      put_inst "sw" [Register r_fp; Offset (!sbase + 4 * !nsaved, r_sp)];
+      put_inst "sw" [Register r_ra; Offset (!sbase + !nsaved*4, r_sp)];
       for i = !nsaved-1 downto 0 do
         put_inst "sw" [Register (rS i); Offset (!sbase + 4*i, r_sp)]
       done;
-      put_inst "addu" [Register r_fp; Register r_sp; Const !space];
       if !nargs > 0 then begin
         for i = min !nargs 4 - 1 downto 0 do
-          put_inst "sw" [Register (rA i); Offset (4*i, r_fp)]
+          put_inst "sw" [Register (rA i); Offset (4*i, r_vfp)]
         done;
       end;
       if !level > 0 then
-        put_inst "sw" [Register (rT 8); Offset (-4, r_fp)]
+        put_inst "sw" [Register (rT 8); Offset (-4, r_vfp)]
 
     let postlude () =
       for i = 0 to !nsaved-1 do
         put_inst "lw" [Register (rS i); Offset (!sbase + 4*i, r_sp)]
       done;
-      put_inst "lw" [Register r_fp; Offset (!sbase + 4 * !nsaved, r_sp)];
-      put_inst "lw" [Register r_ra; Offset (!sbase + 4 * !nsaved + 4, r_sp)];
+      put_inst "lw" [Register r_ra; Offset (!sbase + !nsaved*4, r_sp)];
       put_inst "addu" [Register r_sp; Register r_sp; Const !space];
       put_inst "jr" [Register r_ra];
       put_inst "nop" [];
       printf "\n" []
-
-    let put_label lab =
-      printf ".$:\n" [fLab lab]
 
     let comment = "# "
   end (* Emitter *)
@@ -287,10 +289,8 @@ module MIPS = struct
             gen_move "move" [r; Register r0]
         | <CONST k> ->
             gen_reg "li" [r; Const k]
-        | <LOCAL 0> ->
-            gen_move "move" [r; Register r_fp]
         | <LOCAL n> ->
-            gen_reg "addu" [r; Register r_fp; Const n]
+            gen_reg "la" [r; Offset(n, r_vfp)]
         | <GLOBAL x> ->
             gen_reg "la" [r; Global x]
         | <TEMPW n> ->
@@ -402,7 +402,7 @@ module MIPS = struct
     and eval_addr =
       function
           <GLOBAL x> -> Global x
-        | <LOCAL n> -> Offset (n, r_fp)
+        | <LOCAL n> -> Offset (n, r_vfp)
         | <OFFSET, <GLOBAL x>, t2> ->
             let v2 = eval_reg t2 anyreg in
             Index (x, reg_of v2)
@@ -486,7 +486,6 @@ module MIPS = struct
         | <ARG i, t1> when i < 4 ->
             ignore (eval_reg t1 (Register (rA i)))
         | <ARG i, t1> when i >= 4 ->
-            Emitter.need_stack (4*i+4);
             let v1 = eval_reg t1 anyreg in
             gen "sw" [v1; Offset (4*i, r_sp)]
 
