@@ -96,6 +96,10 @@ let inc_temp n =
 let def_temp n r =
   let t = temp n in t.t_reg <- r
 
+(* |temp_reg| -- return register allocated for temp, or R_none *)
+let temp_reg n =
+  let t = temp n in t.t_reg
+
 (* |use_temp| -- use a temp variable *)
 let use_temp n =
   let t = temp n in 

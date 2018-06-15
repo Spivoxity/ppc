@@ -6,7 +6,7 @@ untidy expressions *)
 
 (* tunable parameters *)
 const
-  MAXSYMBOLS = 511;  (* max no. of symbols *)
+  MAXSYMBOLS = 512;  (* max no. of symbols *)
   HASHFACTOR = 90;  (* percent loading factor for hash table *)
   MAXCHARS = 2048;  (* max chars in symbols *)
   MAXSTRING = 128;  (* max string length *)

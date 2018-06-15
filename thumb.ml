@@ -47,9 +47,9 @@ module Thumb = struct
     let param_base = 20
     let local_base lev = 0
     let stat_link = 12
-    let nregvars = 0
+    let nregvars = 2
     let share_globals = true
-    let share_heat = 0
+    let sharing = 0
 
     (* ARM register assignments:
 
@@ -200,8 +200,7 @@ module Thumb = struct
       proclab := lab; frame := fram; nargs := na; stack := 0; 
       let ns = Alloc.outgoing () in
       if ns > 4 then stack := 4*ns-16;
-      (* Round up frame space for stack alignment *)
-      space := 8 * ((!frame + !stack + 7)/8)
+      space := 4 * ((!frame + !stack + 3)/4)
 
     let adjsp op =
       if !space <= 1024 then
@@ -217,21 +216,21 @@ module Thumb = struct
       segment Text;
       printf "\t.thumb_func\n" [];
       printf "$:\n" [fStr !proclab];
-      if !nargs > 0 then begin
-        let save = if !nargs <= 2 then "{r0-r1}" else "{r0-r3}" in
-        printf "\tpush $\n" [fStr save]
-      end;
+      if !nargs = 1 then
+        printf "\tpush {r0}\n" []
+      else if !nargs > 1 then
+        printf "\tpush {r0-r$}\n" [fNum (min 3 (!nargs-1))];
       printf "\tpush {r4-r7, lr}\n" [];
       adjsp "sub"
 
     let postlude () =
       adjsp "add";
       if !nargs = 0 then
-        printf "\t pop {r4-r7, pc}\n" []
+        printf "\tpop {r4-r7, pc}\n" []
       else begin
         printf "\tpop {r4-r7}\n" [];
         printf "\tpop {r3}\n" [];
-        printf "\tadd sp, sp, #$\n" [fNum (if !nargs > 2 then 16 else 8)];
+        printf "\tadd sp, sp, #$\n" [fNum (min 16 (!nargs*4))];
         printf "\tbx r3\n" [];
       end;
       printf "\t.ltorg\n" [];               (* Output the literal table *)
@@ -470,8 +469,15 @@ module Thumb = struct
             Alloc.def_temp n (reg 0)
 
         | <DEFTEMP n, t1> ->
-            let v1 = eval_reg t1 anytemp in
-            Alloc.def_temp n (reg_of v1)
+            let r = temp_reg n in
+            if r = R_none then begin
+              let v1 = eval_reg t1 anytemp in
+              Alloc.def_temp n (reg_of v1)
+            end else begin
+              (* A short-circuit condition: assume no spills *)
+              let v1 = eval_reg t1 (Register r) in
+              release v1
+            end
 
         | <(STOREW|STOREC), t1, <REGVAR i>> ->
             let rv = regvar i in
@@ -571,13 +577,14 @@ module Thumb = struct
       (* Then use the map to expand overlong branches *)
       let pass q = begin
         let m = make_map q in
+        let reach addr lab d =
+          let dest = Hashtbl.find m lab in
+          dest >= addr + 2 - d && dest < addr + 2 + d in
         let q1 = Queue.create () in
         let h addr x =
           match x with
               Instr (w, [Label lab]) when is_branch w ->
-                let dest = Hashtbl.find m lab in
-                Queue.add (Comment (sprintf "Est: $" [fNum (dest-addr)])) q1;
-                if dest >= addr - 126 && dest < addr + 130 then
+                if reach addr lab 128 then
                   Queue.add x q1
                 else begin
                   changed := true;
@@ -587,6 +594,15 @@ module Thumb = struct
                   Queue.add (Label lab1) q1
                 end;
                 addr+1
+(*
+            | Instr ("b", [Label lab]) ->
+                if reach addr lab 1024 then
+                  Queue.add x q1
+                else
+                  (* Use bl and assume it's OK to trash lr *)
+                  Queue.add (Instr ("bl", [Label lab])) q1;
+                addr+1
+*)
             | Instr (w, _) ->
                 Queue.add x q1; addr + instr_size w
             | _ -> Queue.add x q1; addr in

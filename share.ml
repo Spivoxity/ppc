@@ -102,7 +102,7 @@ let rec make_dag t =
     | <(CALL n | CALLW n | CALLQ n) as op, @ts> -> 
         (* Never share procedure calls *)
         let gs = List.map make_dag ts in
-        if Metrics.share_heat > 1 then
+        if Metrics.sharing > 1 then
           kill (fun g -> true)
         else
           reset ();
@@ -111,7 +111,7 @@ let rec make_dag t =
         newnode op [make_dag t]
     | <JUMPC (w, lab) as op, @ts> ->
         let gs = List.map make_dag ts in
-        if Metrics.share_heat = 0 then reset ();
+        if Metrics.sharing = 0 then reset ();
         newnode op gs
     | <w, @ts> ->
 	node w (List.map make_dag ts)

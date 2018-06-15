@@ -216,7 +216,7 @@ module F(Tgt : Target.T) = struct
 
   (* |translate| -- translate a procedure body *)
   let translate lab level nargs fsize nregv code =
-    Alloc.reset (); Alloc.get_regvars nregv;
+    Alloc.get_regvars nregv;
     Alloc.set_outgoing (Util.maximum (List.map max_params code));
 
     let code0 = show "Initial code" code in

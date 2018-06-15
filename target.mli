@@ -27,7 +27,7 @@ module type MetricsT = sig
   val stat_link : int		(* Offset of static link *)
   val nregvars : int		(* Number of register variables *)
   val share_globals : bool      (* Whether to use CSE on <GLOBAL x> *)
-  val share_heat : int		(* Whether to use CSE across jumps or calls *)
+  val sharing : int		(* Whether to use CSE across jumps or calls *)
 
   val reg_names : string array
 
@@ -76,6 +76,10 @@ module type AllocT = sig
 
   (* |inc_temp| -- increment refcount of a temp variable *)
   val inc_temp : int -> unit
+
+  (* |temp_reg| -- return register allocated for temp, or R_none *)
+  val temp_reg : int -> reg
+
   (* |use_temp| -- use a temp variable *)
   val use_temp : int -> reg
 

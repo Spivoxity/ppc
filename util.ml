@@ -31,3 +31,12 @@ let rec accum f ys a =
 
 (* |maximum xs| returns the maximum of xs, or zero for [] *)
 let maximum xs = List.fold_left max 0 xs
+
+(* |exact_log2| -- return log2 of argument, or raise Not_found *)
+let exact_log2 x =
+  let rec loop y i =
+    if y = 1 then i
+    else if y mod 2 <> 0 then raise Not_found
+    else loop (y/2) (i+1) in
+  if x <= 0 then raise Not_found;
+  loop x 0

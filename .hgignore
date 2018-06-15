@@ -22,3 +22,4 @@ ppc-risc86
 b.out
 b.s
 b.test
+ppc-thumb

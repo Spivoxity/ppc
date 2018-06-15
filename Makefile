@@ -4,25 +4,17 @@ include config.mk
 
 all: $(PPC)
 
+ALLARCH = ppc-amd64 ppc-mips ppc-arm ppc-thumb ppc-risc86
+
 TOOLS = tools
 
 COMMON = util.cmo optree.cmo dict.cmo tree.cmo lexer.cmo \
 	parser.cmo check.cmo simp.cmo jumpopt.cmo \
 	regs.cmo share.cmo coder.cmo tgen.cmo main.cmo
 
-ppc-amd64: $(COMMON) amd64.cmo
-	ocamlc -g lib/common.cma $^ -o $@ 
+all-arch: $(ALLARCH)
 
-ppc-mips: $(COMMON) mips.cmo
-	ocamlc -g lib/common.cma $^ -o $@ 
-
-ppc-arm: $(COMMON) arm.cmo
-	ocamlc -g lib/common.cma $^ -o $@ 
-
-ppc-thumb: $(COMMON) thumb.cmo
-	ocamlc -g lib/common.cma $^ -o $@ 
-
-ppc-risc86: $(COMMON) risc86.cmo
+ppc-%: $(COMMON) %.cmo
 	ocamlc -g lib/common.cma $^ -o $@ 
 
 parser.ml parser.mli: parser.mly
@@ -48,7 +40,7 @@ test: force
 	@echo "  'make test1'  to test the native backend"
 	@echo "  'make test2a' to test with qemu-arm"
 	@echo "  'make test2t' to test with qemu-arm (thumb mode)"
-	@echo "  'make test2n' to test with qemu-mips"
+	@echo "  'make test2m' to test with qemu-mips"
 
 EXCLUDE = nasty
 ALLSRC := $(shell ls test/*.p)
@@ -101,10 +93,6 @@ pas0-arm.o: pas0.c
 
 GCC-THUMB = arm-linux-gnueabihf-gcc -marm -march=armv6 -mthumb-interwork
 
-THUMBFIX = : fix
-test2t-pprolog test2t-pascal test2t-sudoku: \
-	THUMBFIX = sed -i -f pprolog-fix b.s
-
 test2t-% : ppc-thumb pas0-thumb.o force
 	@echo "*** Test $*.p"
 	./ppc-thumb -d 1 $(OPT) test/$*.p >b.s
@@ -146,9 +134,9 @@ ML = $(MLGEN) optree.ml tgen.ml tgen.mli simp.ml share.ml share.mli \
 	regs.mli regs.ml jumpopt.mli arm.ml risc86.ml amd64.ml thumb.ml
 
 clean: force
-	rm -f *.cmi *.cmo *.o *.output
+	rm -f *.cmi *.cmo *.o *.output b.out b.s b.test
 	rm -f $(MLGEN)
-	rm -f ppc-mips ppc-arm ppc-thumb ppc-risc86 ppc-amd64 b.out b.s b.test
+	rm -f $(ALLARCH)
 
 depend: $(ML) $(TOOLS)/nodexp force
 	(sed '/^###/q' Makefile; echo; ocamldep -pp $(TOOLS)/nodexp $(ML)) >new
@@ -165,8 +153,10 @@ arm.cmx : target.cmi regs.cmx optree.cmx main.cmx
 check.cmo : util.cmo tree.cmi target.cmi optree.cmi dict.cmi check.cmi
 check.cmx : util.cmx tree.cmx target.cmi optree.cmx dict.cmx check.cmi
 check.cmi : tree.cmi dict.cmi
-coder.cmo : target.cmi simp.cmi share.cmi optree.cmi jumpopt.cmi coder.cmi
-coder.cmx : target.cmi simp.cmx share.cmx optree.cmx jumpopt.cmx coder.cmi
+coder.cmo : util.cmo target.cmi simp.cmi share.cmi optree.cmi jumpopt.cmi \
+    coder.cmi
+coder.cmx : util.cmx target.cmi simp.cmx share.cmx optree.cmx jumpopt.cmx \
+    coder.cmi
 coder.cmi : target.cmi optree.cmi
 dict.cmo : util.cmo target.cmi optree.cmi dict.cmi
 dict.cmx : util.cmx target.cmi optree.cmx dict.cmi
@@ -202,13 +192,13 @@ simp.cmo : util.cmo optree.cmi simp.cmi
 simp.cmx : util.cmx optree.cmx simp.cmi
 simp.cmi : optree.cmi
 target.cmi : optree.cmi
-tgen.cmo : tree.cmi target.cmi optree.cmi lexer.cmi dict.cmi coder.cmi \
-    tgen.cmi
-tgen.cmx : tree.cmx target.cmi optree.cmx lexer.cmx dict.cmx coder.cmx \
-    tgen.cmi
+tgen.cmo : util.cmo tree.cmi target.cmi optree.cmi lexer.cmi dict.cmi \
+    coder.cmi tgen.cmi
+tgen.cmx : util.cmx tree.cmx target.cmi optree.cmx lexer.cmx dict.cmx \
+    coder.cmx tgen.cmi
 tgen.cmi : tree.cmi target.cmi
-thumb.cmo : target.cmi regs.cmi optree.cmi main.cmi
-thumb.cmx : target.cmi regs.cmx optree.cmx main.cmx
+thumb.cmo : util.cmo target.cmi regs.cmi optree.cmi main.cmi
+thumb.cmx : util.cmx target.cmi regs.cmx optree.cmx main.cmx
 tree.cmo : optree.cmi dict.cmi tree.cmi
 tree.cmx : optree.cmx dict.cmx tree.cmi
 tree.cmi : optree.cmi dict.cmi

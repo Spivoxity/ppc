@@ -54,7 +54,7 @@ module MIPS = struct
     let stat_link = -4
     let nregvars = 3
     let share_globals = true
-    let hot_share = true
+    let sharing = 2
 
     (* MIPS register assignments:
 
@@ -443,8 +443,15 @@ module MIPS = struct
             Alloc.def_temp n (rV 0)
 
         | <DEFTEMP n, t1> ->
-            let v1 = eval_reg t1 anytemp in
-            Alloc.def_temp n (reg_of v1)
+            let r = temp_reg n in
+            if r = R_none then begin
+              let v1 = eval_reg t1 anytemp in
+              Alloc.def_temp n (reg_of v1)
+            end else begin
+              (* A short-circuit condition: assume no spills *)
+              let v1 = eval_reg t1 (Register r) in
+              release v1
+            end
 
         | <(STOREW|STOREC), t1, <REGVAR i>> ->
             let rv = regvar i in

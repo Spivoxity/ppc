@@ -61,7 +61,7 @@ module AMD64 = struct
     let stat_link = -8
     let nregvars = 2
     let share_globals = false
-    let share_heat = 2
+    let sharing = 2
 
     (* Names the the 64-bit registers *)
     let reg_names =
@@ -555,8 +555,15 @@ module AMD64 = struct
             Alloc.def_temp n rAX
 
         | <DEFTEMP n, t1> ->
-            let v1 = eval_reg t1 anytemp in
-            Alloc.def_temp n (reg_of v1)
+            let r = temp_reg n in
+            if r = R_none then begin
+              let v1 = eval_reg t1 anytemp in
+              Alloc.def_temp n (reg_of v1)
+            end else begin
+              (* A short-circuit condition: assume no spills *)
+              let v1 = eval_reg t1 (reg r) in
+              release v1
+            end
 
         | <(STOREW|STOREC), t1, <REGVAR n>> ->
             let rv = regvar n in

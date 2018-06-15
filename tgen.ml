@@ -14,6 +14,7 @@ let boundchk = ref false
 module F(Tgt : Target.T) = struct
   module Metrics = Tgt.Metrics
   module Emitter = Tgt.Emitter
+  module Alloc = Tgt.Alloc
 
   open Metrics
 
@@ -104,6 +105,10 @@ module F(Tgt : Target.T) = struct
   let gen_copy dst src n =
     libcall "memcpy" [dst; src; <CONST n>] void_rep
 
+  (* |const_val| -- get value of constant or raise Not_found *)
+  let const_val e =
+    match e.e_value with Some v -> v | None -> raise Not_found
+
   (* |gen_addr| -- code for the address of a variable *)
   let rec gen_addr v = 
     match v.e_guts with
@@ -157,15 +162,34 @@ module F(Tgt : Target.T) = struct
               | Monop (w, e1) ->
                   <MONOP w, gen_expr e1>
               | Binop (Div, e1, e2) ->
-                  libcall "int_div" [gen_expr e1; gen_expr e2] int_rep
+                  begin try
+                    let k = Util.exact_log2 (const_val e2) in
+                    <BINOP Asr, gen_expr e1, <CONST k>>
+                  with Not_found ->
+                    libcall "int_div" [gen_expr e1; gen_expr e2] int_rep
+                  end
               | Binop (Mod, e1, e2) ->
-                  libcall "int_mod" [gen_expr e1; gen_expr e2] int_rep
+                  begin try
+                    let k = Util.exact_log2 (const_val e2) in
+                    <BINOP BitAnd, gen_expr e1, <CONST (1 lsl k - 1)>>
+                  with Not_found ->
+                    libcall "int_mod" [gen_expr e1; gen_expr e2] int_rep
+                  end
               | Binop (Eq, e1, e2) ->
                   let eq = choose e1 Eq Eq EqA in
                   <BINOP eq, gen_expr e1, gen_expr e2>
               | Binop (Neq, e1, e2) ->
                   let neq = choose e1 Neq Neq NeqA in
                   <BINOP neq, gen_expr e1, gen_expr e2>
+              | Binop ((And|Or), _, _) ->
+                  let lab1 = label () and lab2 = label () and lab3 = label () in
+                  let t = Alloc.new_temp 1 in
+                  <AFTER,
+                    <SEQ, gen_cond e lab1 lab2,
+                      <LABEL lab1>, <DEFTEMP t, <CONST 1>>, <JUMP lab3>,
+                      <LABEL lab2>, <DEFTEMP t, <CONST 0>>,
+                      <LABEL lab3>>,
+                    <TEMPW t>>
               | Binop (w, e1, e2) ->
                   <BINOP w, gen_expr e1, gen_expr e2>
               | FuncCall (p, args) -> 
@@ -235,7 +259,7 @@ module F(Tgt : Target.T) = struct
           libcall proc (List.map gen_expr args) void_rep
 
   (* |gen_cond| -- generate code to branch on a condition *)
-  let rec gen_cond test tlab flab =
+  and gen_cond test tlab flab =
     match test.e_value with
         Some v ->
           if v <> 0 then <JUMP tlab> else <JUMP flab>
@@ -390,7 +414,7 @@ module F(Tgt : Target.T) = struct
 
   (* |do_proc| -- generate code for a procedure and pass to the back end *)
   let do_proc lab lev nargs (Block (_, body, fsize, nregv)) =
-    level := lev+1; retlab := label ();
+    level := lev+1; retlab := label (); Alloc.reset ();
     Code.translate lab lev nargs !fsize !nregv
       (Optree.canon <SEQ, gen_stmt body, <LABEL !retlab>>)
 
