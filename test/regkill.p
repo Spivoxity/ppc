@@ -24,11 +24,10 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc p();
-	.text
+	.section .text
 _p:
 	mov ip, sp
 	stmfd sp!, {r4-r10, fp, ip, lr}
@@ -42,7 +41,7 @@ _p:
 @   z := y + 1;
 	add r5, r4, #1
 @   x := z
-	set r0, _x
+	ldr r0, =_x
 	str r5, [r0]
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
@@ -54,7 +53,7 @@ pmain:
 @   p();
 	bl _p
 @   print_num(x);
-	set r0, _x
+	ldr r0, =_x
 	ldr r0, [r0]
 	bl print_num
 @   newline()

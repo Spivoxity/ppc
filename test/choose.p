@@ -24,11 +24,10 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc choose(n, k: integer): integer;
-	.text
+	.section .text
 _choose:
 	mov ip, sp
 	stmfd sp!, {r0-r1}

@@ -47,11 +47,10 @@ def
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc choose(k, n: integer);
-	.text
+	.section .text
 _choose:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
@@ -67,7 +66,7 @@ _choose:
 	bne .L7
 @       print_string(buf); newline()
 	mov r1, #10
-	set r0, _buf
+	ldr r0, =_buf
 	bl print_string
 	bl newline
 	b .L5
@@ -80,10 +79,10 @@ _choose:
 @       buf[k-1] := letters[n-1];
 	ldr r4, [fp, #44]
 	ldr r5, [fp, #40]
-	set r0, g1
+	ldr r0, =g1
 	add r0, r0, r4
 	ldrb r0, [r0, #-1]
-	set r1, _buf
+	ldr r1, =_buf
 	add r1, r1, r5
 	strb r0, [r1, #-1]
 @       choose(k-1, n-1);
@@ -106,7 +105,7 @@ pmain:
 	.ltorg
 
 	.comm _buf, 10, 4
-	.data
+	.section .rodata
 g1:
 	.byte 97, 98, 99, 100, 101, 102
 	.byte 0

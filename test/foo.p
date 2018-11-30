@@ -27,11 +27,10 @@ The final answer is calculated as 37
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc gcd(u, v: integer): integer;
-	.text
+	.section .text
 _gcd:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
@@ -68,22 +67,21 @@ pmain:
 	mov r1, #185
 	mov r0, #111
 	bl _gcd
-	set r1, _z
-	str r0, [r1]
+	ldr r4, =_z
+	str r0, [r4]
 @   print_string("The final answer is calculated as ");
-	mov r1, #34
-	set r0, g1
+	mov r1, #35
+	ldr r0, =g1
 	bl print_string
 @   print_num(z); newline()
-	set r0, _z
-	ldr r0, [r0]
+	ldr r0, [r4]
 	bl print_num
 	bl newline
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
 	.comm _z, 4, 4
-	.data
+	.section .rodata
 g1:
 	.byte 84, 104, 101, 32, 102, 105, 110, 97, 108, 32
 	.byte 97, 110, 115, 119, 101, 114, 32, 105, 115, 32

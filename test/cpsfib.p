@@ -38,11 +38,10 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc fib(n: integer): integer;
-	.text
+	.section .text
 _fib:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
@@ -50,7 +49,7 @@ _fib:
 	mov fp, sp
 @   return fib1(n, id)
 	mov r2, fp
-	set r1, _id
+	ldr r1, =_id
 	ldr r0, [fp, #40]
 	mov r10, fp
 	bl _fib1
@@ -76,7 +75,7 @@ _fib1:
 .L4:
 @       return fib1(n-1, k1)
 	mov r2, fp
-	set r1, _k1
+	ldr r1, =_k1
 	ldr r0, [fp, #40]
 	sub r0, r0, #1
 	ldr r10, [fp, #24]
@@ -94,7 +93,7 @@ _k1:
 @     begin return fib1(n-2, k2) end;
 	ldr r4, [fp, #24]
 	mov r2, fp
-	set r1, _k2
+	ldr r1, =_k2
 	ldr r0, [r4, #40]
 	sub r0, r0, #2
 	ldr r10, [r4, #24]

@@ -20,31 +20,28 @@ Hello, world!
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
-	.text
+	.section .text
 pmain:
 	mov ip, sp
 	stmfd sp!, {r4-r10, fp, ip, lr}
 	mov fp, sp
 @   i := 0;
 	mov r0, #0
-	set r1, _i
+	ldr r1, =_i
 	str r0, [r1]
 .L3:
 @   while in[i] <> '*' do
-	set r4, _i
+	ldr r4, =_i
 	ldr r5, [r4]
-	set r0, g1
-	add r0, r0, r5
-	ldrb r6, [r0]
+	ldr r0, =g1
+	ldrb r6, [r0, r5]
 	cmp r6, #42
 	beq .L5
 @     out[i] := in[i];
-	set r0, _out
-	add r0, r0, r5
-	strb r6, [r0]
+	ldr r0, =_out
+	strb r6, [r0, r5]
 @     i := i + 1
 	ldr r0, [r4]
 	add r0, r0, #1
@@ -52,12 +49,11 @@ pmain:
 	b .L3
 .L5:
 @   out[i] := chr(0);
-	set r4, _out
+	ldr r4, =_out
 	mov r0, #0
-	set r1, _i
+	ldr r1, =_i
 	ldr r1, [r1]
-	add r1, r4, r1
-	strb r0, [r1]
+	strb r0, [r4, r1]
 @   print_string(out); newline()
 	mov r1, #128
 	mov r0, r4
@@ -68,7 +64,7 @@ pmain:
 
 	.comm _out, 128, 4
 	.comm _i, 4, 4
-	.data
+	.section .rodata
 g1:
 	.byte 72, 101, 108, 108, 111, 44, 32, 119, 111, 114
 	.byte 108, 100, 33, 42

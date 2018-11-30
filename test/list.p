@@ -46,11 +46,10 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc sum(p: ptr): integer;
-	.text
+	.section .text
 _sum:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
@@ -84,9 +83,8 @@ _main:
 	mov r4, #0
 .L7:
 @   while input[i] <> '0' do i := i+1 end;
-	set r0, g1
-	add r0, r0, r4
-	ldrb r0, [r0]
+	ldr r0, =g1
+	ldrb r0, [r0, r4]
 	cmp r0, #48
 	beq .L9
 	add r4, r4, #1
@@ -107,9 +105,8 @@ _main:
 	bl new
 	mov r5, r0
 @     p^.data := ord(input[i]) - ord('0');
-	set r0, g1
-	add r0, r0, r4
-	ldrb r0, [r0]
+	ldr r0, =g1
+	ldrb r0, [r0, r4]
 	sub r0, r0, #48
 	str r0, [r5]
 @     p^.next := q
@@ -133,7 +130,7 @@ pmain:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
-	.data
+	.section .rodata
 g1:
 	.byte 51, 49, 52, 49, 53, 57, 50, 54, 53, 48
 	.byte 0

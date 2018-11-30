@@ -18,11 +18,10 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc inc(var x: integer): integer;
-	.text
+	.section .text
 _inc:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
@@ -45,17 +44,17 @@ pmain:
 	mov fp, sp
 @   i := 0;
 	mov r0, #0
-	set r1, _i
+	ldr r1, =_i
 	str r0, [r1]
 .L3:
 @   repeat until inc(i) > 10;
-	set r0, _i
+	ldr r4, =_i
+	mov r0, r4
 	bl _inc
 	cmp r0, #10
 	ble .L3
 @   print_num(i); newline()
-	set r0, _i
-	ldr r0, [r0]
+	ldr r0, [r4]
 	bl print_num
 	bl newline
 	ldmfd fp, {r4-r10, fp, sp, pc}

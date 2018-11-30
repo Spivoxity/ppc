@@ -40,11 +40,10 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc search(k, n: integer; proc avail(x: integer): boolean);
-	.text
+	.section .text
 _search:
 	mov ip, sp
 	stmfd sp!, {r0-r3}
@@ -89,7 +88,7 @@ _search:
 	beq .L10
 @         search(k+1, n1, avail1)
 	mov r3, fp
-	set r2, _avail1
+	ldr r2, =_avail1
 	mov r1, r4
 	ldr r0, [fp, #40]
 	add r0, r0, #1
@@ -146,7 +145,7 @@ pmain:
 	mov fp, sp
 @   search(0, 0, avail0)
 	mov r3, #0
-	set r2, _avail0
+	ldr r2, =_avail0
 	mov r1, #0
 	mov r0, #0
 	bl _search

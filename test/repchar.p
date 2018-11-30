@@ -21,11 +21,10 @@ AAABBBBB
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc repchar(c: char; n: integer);
-	.text
+	.section .text
 _repchar:
 	mov ip, sp
 	stmfd sp!, {r0-r1}

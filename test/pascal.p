@@ -40,11 +40,10 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc pascal2();
-	.text
+	.section .text
 _pascal2:
 	mov ip, sp
 	stmfd sp!, {r4-r10, fp, ip, lr}
@@ -61,8 +60,7 @@ _pascal2:
 	add r0, fp, #-440
 	mov r1, #44
 	mul r1, r4, r1
-	add r0, r0, r1
-	str r6, [r0]
+	str r6, [r0, r1]
 	mov r5, #1
 @     print_num(a[i][0]);
 	mov r0, r6
@@ -82,8 +80,7 @@ _pascal2:
 	ldr r0, [r8, #-4]
 	ldr r1, [r8]
 	add r0, r0, r1
-	add r1, r6, r7
-	str r0, [r1]
+	str r0, [r6, r7]
 @       print_char(' '); print_num(a[i][j]);
 	mov r0, #32
 	bl print_char
@@ -91,9 +88,7 @@ _pascal2:
 	mov r1, #44
 	mul r1, r4, r1
 	add r0, r0, r1
-	lsl r1, r5, #2
-	add r0, r0, r1
-	ldr r0, [r0]
+	ldr r0, [r0, r5, LSL #2]
 	bl print_num
 @       j := j+1
 	add r5, r5, #1
@@ -105,8 +100,7 @@ _pascal2:
 	mov r2, #44
 	mul r2, r4, r2
 	add r1, r1, r2
-	lsl r2, r4, #2
-	add r1, r1, r2
+	add r1, r1, r4, LSL #2
 	str r0, [r1, #4]
 @     newline();
 	bl newline

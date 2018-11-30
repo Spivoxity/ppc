@@ -26,21 +26,20 @@ OK2
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
-	.text
+	.section .text
 pmain:
 	mov ip, sp
 	stmfd sp!, {r4-r10, fp, ip, lr}
 	mov fp, sp
 @   x := true;
 	mov r4, #1
-	set r0, _x
+	ldr r0, =_x
 	strb r4, [r0]
 @   y := not x;
 	eor r5, r4, #1
-	set r6, _y
+	ldr r6, =_y
 	strb r5, [r6]
 @   y := not y;
 	eor r5, r5, #1
@@ -49,18 +48,18 @@ pmain:
 	cmp r4, r5
 	bne .L6
 @     print_string("OK"); newline()
-	mov r1, #2
-	set r0, g1
+	mov r1, #3
+	ldr r0, =g1
 	bl print_string
 	bl newline
 .L6:
 @   u := 37;
 	mov r4, #37
-	set r0, _u
+	ldr r0, =_u
 	str r4, [r0]
 @   v := -u;
 	neg r5, r4
-	set r6, _v
+	ldr r6, =_v
 	str r5, [r6]
 @   v := -v;
 	neg r5, r5
@@ -69,8 +68,8 @@ pmain:
 	cmp r4, r5
 	bne .L3
 @     print_string("OK2"); newline()
-	mov r1, #3
-	set r0, g2
+	mov r1, #4
+	ldr r0, =g2
 	bl print_string
 	bl newline
 .L3:
@@ -81,7 +80,7 @@ pmain:
 	.comm _y, 1, 4
 	.comm _u, 4, 4
 	.comm _v, 4, 4
-	.data
+	.section .rodata
 g1:
 	.byte 79, 75
 	.byte 0

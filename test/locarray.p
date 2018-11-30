@@ -13,11 +13,10 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc P();
-	.text
+	.section .text
 _P:
 	mov ip, sp
 	stmfd sp!, {r4-r10, fp, ip, lr}
@@ -27,9 +26,7 @@ _P:
 	mov r4, #0
 @   x := a[i]
 	add r0, fp, #-40
-	lsl r1, r4, #2
-	add r0, r0, r1
-	ldr r5, [r0]
+	ldr r5, [r0, r4, LSL #2]
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 

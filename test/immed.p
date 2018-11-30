@@ -20,42 +20,38 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
-	.text
+	.section .text
 pmain:
 	mov ip, sp
 	stmfd sp!, {r4-r10, fp, ip, lr}
 	mov fp, sp
 @   k := 100;
+	ldr r4, =_k
 	mov r0, #100
-	set r1, _k
-	str r0, [r1]
+	str r0, [r4]
 @   print_num(516); newline();
 	mov r0, #516
 	bl print_num
 	bl newline
 @   print_num(517); newline();
-	set r0, #517
+	ldr r0, =517
 	bl print_num
 	bl newline
 @   print_num(k + -50); newline();
-	set r0, _k
-	ldr r0, [r0]
+	ldr r0, [r4]
 	sub r0, r0, #50
 	bl print_num
 	bl newline
 @   print_num(k + -1023); newline();
-	set r0, _k
-	ldr r0, [r0]
-	set r1, #1023
+	ldr r0, [r4]
+	ldr r1, =1023
 	sub r0, r0, r1
 	bl print_num
 	bl newline
 @   print_num(k + -1024); newline()
-	set r0, _k
-	ldr r0, [r0]
+	ldr r0, [r4]
 	sub r0, r0, #1024
 	bl print_num
 	bl newline

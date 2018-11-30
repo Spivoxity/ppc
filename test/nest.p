@@ -9,11 +9,10 @@ begin print_num(f(f(3))); newline() end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc f(x: integer): integer; begin return 2*x end;
-	.text
+	.section .text
 _f:
 	mov ip, sp
 	stmfd sp!, {r0-r1}

@@ -65,11 +65,10 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc build(n: integer): tree;
-	.text
+	.section .text
 _build:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
@@ -167,30 +166,28 @@ pmain:
 	mov fp, sp
 @   for n := 0 to 7 do
 	mov r0, #0
-	set r1, _n
+	ldr r1, =_n
 	str r0, [r1]
 	mov r4, #7
 .L14:
-	set r0, _n
-	ldr r5, [r0]
-	cmp r5, r4
+	ldr r5, =_n
+	ldr r6, [r5]
+	cmp r6, r4
 	bgt .L13
 @     p := build(n);
-	mov r0, r5
+	mov r0, r6
 	bl _build
-	set r1, _p
-	str r0, [r1]
+	ldr r6, =_p
+	str r0, [r6]
 @     print_num(count(p)); print_char(' ');
 	bl _count
 	bl print_num
 	mov r0, #32
 	bl print_char
 @     print(p); newline()
-	set r0, _p
-	ldr r0, [r0]
+	ldr r0, [r6]
 	bl _print
 	bl newline
-	set r5, _n
 	ldr r0, [r5]
 	add r0, r0, #1
 	str r0, [r5]

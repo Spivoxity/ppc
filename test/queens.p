@@ -149,11 +149,10 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc queens(k: integer; proc choice(x: integer): integer);
-	.text
+	.section .text
 _queens:
 	mov ip, sp
 	stmfd sp!, {r0-r3}
@@ -196,35 +195,36 @@ _queens:
 	mov r5, r0
 @ 	ok := (q <> y) and (q+j <> y+k) and (q-j <> y-k);
 	ldr r7, [fp, #-4]
-	ldr r8, [fp, #40]
 	cmp r5, r7
-	mov r0, #0
-	movne r0, #1
-	add r1, r5, r4
-	add r2, r7, r8
-	cmp r1, r2
-	mov r1, #0
-	movne r1, #1
-	and r0, r0, r1
-	sub r1, r5, r4
-	sub r2, r7, r8
-	cmp r1, r2
-	mov r1, #0
-	movne r1, #1
-	and r6, r0, r1
+	beq .L12
+	ldr r8, [fp, #40]
+	add r0, r5, r4
+	add r1, r7, r8
+	cmp r0, r1
+	beq .L12
+	sub r0, r5, r4
+	sub r1, r7, r8
+	cmp r0, r1
+	beq .L12
+	mov r7, #1
+	b .L13
+.L12:
+	mov r7, #0
+.L13:
+	mov r6, r7
 @         j := j+1
 	add r4, r4, #1
 	b .L8
 .L10:
 @       if ok then queens(k+1, choice1) end;
 	cmp r6, #0
-	beq .L14
+	beq .L19
 	mov r2, fp
-	set r1, _choice1
+	ldr r1, =_choice1
 	ldr r0, [fp, #40]
 	add r0, r0, #1
 	bl _queens
-.L14:
+.L19:
 @       y := y+1
 	ldr r0, [fp, #-4]
 	add r0, r0, #1
@@ -245,18 +245,18 @@ _choice1:
 	ldr r0, [fp, #40]
 	ldr r1, [r4, #40]
 	cmp r0, r1
-	bne .L17
+	bne .L22
 @       return y
 	ldr r0, [r4, #-4]
-	b .L15
-.L17:
+	b .L20
+.L22:
 @       return choice(x)
 	ldr r4, [fp, #24]
 	ldr r0, [fp, #40]
 	ldr r10, [r4, #48]
 	ldr r1, [r4, #44]
 	blx r1
-.L15:
+.L20:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -268,10 +268,10 @@ _print:
 	mov fp, sp
 @   x := 1;
 	mov r4, #1
-.L20:
+.L25:
 @   while x <= N do
 	cmp r4, #8
-	bgt .L22
+	bgt .L27
 @     print_num(choice(x));
 	mov r0, r4
 	ldr r10, [fp, #44]
@@ -280,8 +280,8 @@ _print:
 	bl print_num
 @     x := x+1
 	add r4, r4, #1
-	b .L20
-.L22:
+	b .L25
+.L27:
 @   newline()
 	bl newline
 	ldmfd fp, {r4-r10, fp, sp, pc}
@@ -304,7 +304,7 @@ pmain:
 	mov fp, sp
 @   queens(1, choice0)
 	mov r2, #0
-	set r1, _choice0
+	ldr r1, =_choice0
 	mov r0, #1
 	bl _queens
 	ldmfd fp, {r4-r10, fp, sp, pc}

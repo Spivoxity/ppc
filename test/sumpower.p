@@ -37,11 +37,10 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc sum(a, b: integer; proc f(x: integer): integer): integer;
-	.text
+	.section .text
 _sum:
 	mov ip, sp
 	stmfd sp!, {r0-r3}
@@ -78,7 +77,7 @@ _sum_powers:
 	mov fp, sp
 @   return sum(a, b, pow)
 	mov r3, fp
-	set r2, _pow
+	ldr r2, =_pow
 	ldr r1, [fp, #44]
 	ldr r0, [fp, #40]
 	bl _sum

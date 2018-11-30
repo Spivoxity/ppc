@@ -64,11 +64,10 @@ def
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc cons(head: char; tail: list): list;
-	.text
+	.section .text
 _cons:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
@@ -139,7 +138,7 @@ _choose:
 @       choose(k-1, n-1, cons(letters[n-1], suffix))
 	ldr r4, [fp, #44]
 	ldr r1, [fp, #48]
-	set r0, g1
+	ldr r0, =g1
 	add r0, r0, r4
 	ldrb r0, [r0, #-1]
 	bl _cons
@@ -164,7 +163,7 @@ pmain:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
-	.data
+	.section .rodata
 g1:
 	.byte 97, 98, 99, 100, 101, 102
 	.byte 0

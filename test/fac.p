@@ -23,11 +23,10 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc fac(n: integer): integer;
-	.text
+	.section .text
 _fac:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
@@ -57,7 +56,7 @@ pmain:
 @   f := fac(10);
 	mov r0, #10
 	bl _fac
-	set r1, _f
+	ldr r1, =_f
 	str r0, [r1]
 @   print_num(f);
 	bl print_num

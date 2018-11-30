@@ -18,18 +18,17 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc f(n: integer): integer;
-	.text
+	.section .text
 _f:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
 	stmfd sp!, {r4-r10, fp, ip, lr}
 	mov fp, sp
 @ begin x := x + n; return x end;
-	set r4, _x
+	ldr r4, =_x
 	ldr r0, [r4]
 	ldr r1, [fp, #40]
 	add r5, r0, r1
@@ -43,24 +42,22 @@ pmain:
 	stmfd sp!, {r4-r10, fp, ip, lr}
 	mov fp, sp
 @   x := 2;
+	ldr r4, =_x
 	mov r0, #2
-	set r1, _x
-	str r0, [r1]
+	str r0, [r4]
+@   y := f(3) + 1;
+	mov r0, #3
+	bl _f
+	ldr r5, =_y
+	add r0, r0, #1
+	str r0, [r5]
 @   y := f(3) + 1;
 	mov r0, #3
 	bl _f
 	add r0, r0, #1
-	set r1, _y
-	str r0, [r1]
-@   y := f(3) + 1;
-	mov r0, #3
-	bl _f
-	add r0, r0, #1
-	set r1, _y
-	str r0, [r1]
+	str r0, [r5]
 @   print_num(x); newline()
-	set r0, _x
-	ldr r0, [r0]
+	ldr r0, [r4]
 	bl print_num
 	bl newline
 	ldmfd fp, {r4-r10, fp, sp, pc}

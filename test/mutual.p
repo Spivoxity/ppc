@@ -47,11 +47,10 @@ flip(5) = 38
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc flip(i: integer): integer;
-	.text
+	.section .text
 _flip:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
@@ -72,14 +71,14 @@ _flip:
 	lsl r4, r0, #1
 .L8:
 @   print_string("flip("); print_num(i); 
-	mov r1, #5
-	set r0, g1
+	mov r1, #6
+	ldr r0, =g1
 	bl print_string
 	ldr r0, [fp, #40]
 	bl print_num
 @   print_string(") = "); print_num(r);
-	mov r1, #4
-	set r0, g2
+	mov r1, #5
+	ldr r0, =g2
 	bl print_string
 	mov r0, r4
 	bl print_num
@@ -111,14 +110,14 @@ _flop:
 	add r4, r0, #5
 .L12:
 @   print_string("flop("); print_num(i); 
-	mov r1, #5
-	set r0, g3
+	mov r1, #6
+	ldr r0, =g3
 	bl print_string
 	ldr r0, [fp, #40]
 	bl print_num
 @   print_string(") = "); print_num(r);
-	mov r1, #4
-	set r0, g4
+	mov r1, #5
+	ldr r0, =g4
 	bl print_string
 	mov r0, r4
 	bl print_num
@@ -142,7 +141,7 @@ pmain:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
-	.data
+	.section .rodata
 g1:
 	.byte 102, 108, 105, 112, 40
 	.byte 0

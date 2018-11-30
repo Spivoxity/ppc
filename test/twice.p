@@ -21,11 +21,10 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc square(x: int): int; begin return x * x end;
-	.text
+	.section .text
 _square:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
@@ -63,7 +62,7 @@ _ap_to_sq:
 @ begin return ff(square, x) end;
 	ldr r2, [fp, #48]
 	mov r1, #0
-	set r0, _square
+	ldr r0, =_square
 	ldr r10, [fp, #44]
 	ldr r3, [fp, #40]
 	blx r3
@@ -77,7 +76,7 @@ pmain:
 @   print_num(ap_to_sq(twice, 3));
 	mov r2, #3
 	mov r1, #0
-	set r0, _twice
+	ldr r0, =_twice
 	bl _ap_to_sq
 	bl print_num
 @   newline()

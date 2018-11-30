@@ -17,35 +17,34 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
-	.text
+	.section .text
 pmain:
 	mov ip, sp
 	stmfd sp!, {r4-r10, fp, ip, lr}
 	mov fp, sp
 @   i := 0;
 	mov r0, #0
-	set r1, _i
+	ldr r1, =_i
 	str r0, [r1]
 .L2:
 @     j := 1;
 	mov r0, #1
-	set r1, _j
+	ldr r1, =_j
 	str r0, [r1]
 .L4:
 @       j := j+1; k := k+1; 
-	set r4, _j
+	ldr r4, =_j
 	ldr r0, [r4]
 	add r5, r0, #1
 	str r5, [r4]
-	set r4, _k
+	ldr r4, =_k
 	ldr r0, [r4]
 	add r6, r0, #1
 	str r6, [r4]
 @     until j > i;
-	set r4, _i
+	ldr r4, =_i
 	ldr r7, [r4]
 	cmp r5, r7
 	ble .L4

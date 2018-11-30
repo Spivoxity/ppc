@@ -20,11 +20,10 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc baz(u: integer): integer;
-	.text
+	.section .text
 _baz:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
@@ -32,7 +31,7 @@ _baz:
 	mov fp, sp
 @   x := u;
 	ldr r4, [fp, #40]
-	set r0, _x
+	ldr r0, =_x
 	str r4, [r0]
 @   return x
 	mov r0, r4
@@ -49,7 +48,7 @@ pmain:
 	bl print_num
 	bl newline
 @   print_num(x); newline()
-	set r0, _x
+	ldr r0, =_x
 	ldr r0, [r0]
 	bl print_num
 	bl newline

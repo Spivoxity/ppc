@@ -13,17 +13,16 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
-	.text
+	.section .text
 pmain:
 	mov ip, sp
 	stmfd sp!, {r4-r10, fp, ip, lr}
 	mov fp, sp
 @   x := 314159265;
-	set r4, #314159265
-	set r5, _x
+	ldr r4, =314159265
+	ldr r5, =_x
 	str r4, [r5]
 @   x := bitnot(x);
 	mvn r4, r4

@@ -28,11 +28,10 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc f(x: integer): integer;
-	.text
+	.section .text
 _f:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
@@ -52,7 +51,7 @@ _mmm:
 @   y := f(x); 
 	ldr r0, [fp, #40]
 	bl _f
-	set r1, _y
+	ldr r1, =_y
 	str r0, [r1]
 @   return y*y 
 	mul r0, r0, r0
@@ -65,15 +64,15 @@ pmain:
 	mov fp, sp
 @   x := 3;
 	mov r4, #3
-	set r0, _x
+	ldr r0, =_x
 	str r4, [r0]
 @   y := 5;
 	mov r5, #5
-	set r0, _y
+	ldr r0, =_y
 	str r5, [r0]
 @   z := x * y;
 	mul r4, r4, r5
-	set r0, _z
+	ldr r0, =_z
 	str r4, [r0]
 @   print_num(z);
 	mov r0, r4

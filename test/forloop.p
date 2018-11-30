@@ -17,30 +17,28 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
-	.text
+	.section .text
 pmain:
 	mov ip, sp
 	stmfd sp!, {r4-r10, fp, ip, lr}
 	mov fp, sp
 @   for i := 1 to 5 do
 	mov r0, #1
-	set r1, _i
+	ldr r1, =_i
 	str r0, [r1]
 	mov r4, #5
 .L2:
-	set r0, _i
-	ldr r5, [r0]
-	cmp r5, r4
+	ldr r5, =_i
+	ldr r6, [r5]
+	cmp r6, r4
 	bgt .L1
 @     print_num(i);
-	mov r0, r5
+	mov r0, r6
 	bl print_num
 @     newline()
 	bl newline
-	set r5, _i
 	ldr r0, [r5]
 	add r0, r0, #1
 	str r0, [r5]

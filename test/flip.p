@@ -24,11 +24,10 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc flip(x: integer): integer;
-	.text
+	.section .text
 _flip:
 	mov ip, sp
 	stmfd sp!, {r0-r1}

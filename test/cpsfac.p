@@ -39,11 +39,10 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc fac(n: integer; proc k(r: integer): integer): integer;
-	.text
+	.section .text
 _fac:
 	mov ip, sp
 	stmfd sp!, {r0-r3}
@@ -60,7 +59,7 @@ _fac:
 	b .L3
 .L5:
 	mov r2, fp
-	set r1, _k1
+	ldr r1, =_k1
 	ldr r0, [fp, #40]
 	sub r0, r0, #1
 	bl _fac
@@ -82,14 +81,14 @@ _k1:
 @     print_num(n); print_string(" * "); print_num(r);
 	mov r0, r5
 	bl print_num
-	mov r1, #3
-	set r0, g1
+	mov r1, #4
+	ldr r0, =g1
 	bl print_string
 	ldr r0, [fp, #40]
 	bl print_num
 @     print_string(" = "); print_num(r1); newline();
-	mov r1, #3
-	set r0, g2
+	mov r1, #4
+	ldr r0, =g2
 	bl print_string
 	mov r0, r4
 	bl print_num
@@ -120,7 +119,7 @@ pmain:
 	mov fp, sp
 @   print_num(fac(10, id));
 	mov r2, #0
-	set r1, _id
+	ldr r1, =_id
 	mov r0, #10
 	bl _fac
 	bl print_num
@@ -129,7 +128,7 @@ pmain:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
-	.data
+	.section .rodata
 g1:
 	.byte 32, 42, 32
 	.byte 0

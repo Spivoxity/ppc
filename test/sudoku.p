@@ -377,11 +377,10 @@ Solution:
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc PrintCol(c: Column);
-	.text
+	.section .text
 _PrintCol:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
@@ -410,8 +409,8 @@ _PrintRow:
 	ldr r4, [fp, #40]
 .L11:
 @     print_string(" "); PrintCol(q^.column); q := q^.right
-	mov r1, #1
-	set r0, g1
+	mov r1, #2
+	ldr r0, =g1
 	bl print_string
 	ldr r0, [r4, #16]
 	bl _PrintCol
@@ -433,21 +432,21 @@ _PrintRow:
 	b .L13
 .L15:
 @   print_string("; # "); print_num(n); print_string(" of ");
-	mov r1, #4
-	set r0, g2
+	mov r1, #5
+	ldr r0, =g2
 	bl print_string
 	mov r0, r5
 	bl print_num
-	mov r1, #4
-	set r0, g3
+	mov r1, #5
+	ldr r0, =g3
 	bl print_string
 @   print_num(p^.column^.size); print_string(" choices for ");
 	ldr r0, [fp, #40]
 	ldr r0, [r0, #16]
 	ldr r0, [r0, #12]
 	bl print_num
-	mov r1, #13
-	set r0, g4
+	mov r1, #14
+	ldr r0, =g4
 	bl print_string
 @   PrintCol(p^.column); newline()
 	ldr r0, [fp, #40]
@@ -572,7 +571,7 @@ _MakeArray:
 	ldr r7, [r6, #28]
 	str r7, [r7]
 @       p^.prev := root^.prev; p^.next := root;
-	set r7, _root
+	ldr r7, =_root
 	ldr r0, [r7]
 	ldr r0, [r0, #20]
 	str r0, [r6, #20]
@@ -589,9 +588,7 @@ _MakeArray:
 	mov r1, #36
 	mul r1, r4, r1
 	add r0, r0, r1
-	lsl r1, r5, #2
-	add r0, r0, r1
-	str r6, [r0]
+	str r6, [r0, r5, LSL #2]
 	add r5, r5, #1
 	b .L23
 .L24:
@@ -613,39 +610,33 @@ _MakeMove:
 	str r0, [fp, #-4]
 @   ColumnLink(boardCell[i][j], p);
 	add r1, fp, #-4
-	set r0, _boardCell
+	ldr r0, =_boardCell
 	ldr r2, [fp, #40]
 	mov r3, #36
 	mul r2, r2, r3
 	add r0, r0, r2
 	ldr r2, [fp, #44]
-	lsl r2, r2, #2
-	add r0, r0, r2
-	ldr r0, [r0]
+	ldr r0, [r0, r2, LSL #2]
 	bl _ColumnLink
 @   ColumnLink(boardColumn[j][k], p);
 	add r1, fp, #-4
-	set r0, _boardColumn
+	ldr r0, =_boardColumn
 	ldr r2, [fp, #44]
 	mov r3, #36
 	mul r2, r2, r3
 	add r0, r0, r2
 	ldr r2, [fp, #48]
-	lsl r2, r2, #2
-	add r0, r0, r2
-	ldr r0, [r0]
+	ldr r0, [r0, r2, LSL #2]
 	bl _ColumnLink
 @   ColumnLink(boardRow[i][k], p);
 	add r1, fp, #-4
-	set r0, _boardRow
+	ldr r0, =_boardRow
 	ldr r2, [fp, #40]
 	mov r3, #36
 	mul r2, r2, r3
 	add r0, r0, r2
 	ldr r2, [fp, #48]
-	lsl r2, r2, #2
-	add r0, r0, r2
-	ldr r0, [r0]
+	ldr r0, [r0, r2, LSL #2]
 	bl _ColumnLink
 @   ColumnLink(boardBlock[sqrtN * (i div sqrtN) + j div sqrtN][k], p);
 	mov r1, #3
@@ -657,7 +648,7 @@ _MakeMove:
 	bl int_div
 	add r1, fp, #-4
 	mov r5, r0
-	set r0, _boardBlock
+	ldr r0, =_boardBlock
 	mov r2, #3
 	mul r2, r4, r2
 	add r2, r2, r5
@@ -665,13 +656,11 @@ _MakeMove:
 	mul r2, r2, r3
 	add r0, r0, r2
 	ldr r2, [fp, #48]
-	lsl r2, r2, #2
-	add r0, r0, r2
-	ldr r0, [r0]
+	ldr r0, [r0, r2, LSL #2]
 	bl _ColumnLink
 @   boardMove[i][j][k] := p
 	ldr r0, [fp, #-4]
-	set r1, _boardMove
+	ldr r1, =_boardMove
 	ldr r2, [fp, #40]
 	mov r3, #324
 	mul r2, r2, r3
@@ -681,9 +670,7 @@ _MakeMove:
 	mul r2, r2, r3
 	add r1, r1, r2
 	ldr r2, [fp, #48]
-	lsl r2, r2, #2
-	add r1, r1, r2
-	str r0, [r1]
+	str r0, [r1, r2, LSL #2]
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -696,7 +683,7 @@ _MakePuzzle:
 @   new(root);
 	mov r0, #32
 	bl new
-	set r7, _root
+	ldr r7, =_root
 	str r0, [r7]
 @   root^.prev := root; root^.next := root;
 	str r0, [r0, #20]
@@ -706,25 +693,25 @@ _MakePuzzle:
 	mov r3, #9
 	mov r2, #9
 	mov r1, #81
-	set r0, _boardCell
+	ldr r0, =_boardCell
 	bl _MakeArray
 @   MakeArray(boardColumn, 'C', N, N);
 	mov r3, #9
 	mov r2, #9
 	mov r1, #67
-	set r0, _boardColumn
+	ldr r0, =_boardColumn
 	bl _MakeArray
 @   MakeArray(boardRow, 'R', N, N);
 	mov r3, #9
 	mov r2, #9
 	mov r1, #82
-	set r0, _boardRow
+	ldr r0, =_boardRow
 	bl _MakeArray
 @   MakeArray(boardBlock, 'B', N, N);
 	mov r3, #9
 	mov r2, #9
 	mov r1, #66
-	set r0, _boardBlock
+	ldr r0, =_boardBlock
 	bl _MakeArray
 @   for i := 0 to N-1 do
 	mov r4, #0
@@ -886,14 +873,14 @@ _ChooseColumn:
 	stmfd sp!, {r4-r10, fp, ip, lr}
 	mov fp, sp
 @   col := root^.next;
-	set r0, _root
+	ldr r0, =_root
 	ldr r0, [r0]
 	ldr r5, [r0, #24]
 @   c := col^.next;
 	ldr r4, [r5, #24]
 .L48:
 @   while c <> root do
-	set r0, _root
+	ldr r0, =_root
 	ldr r0, [r0]
 	cmp r4, r0
 	beq .L50
@@ -942,8 +929,7 @@ _PrintState:
 	mov r2, #9
 	mul r2, r4, r2
 	add r1, r1, r2
-	add r1, r1, r5
-	strb r0, [r1]
+	strb r0, [r1, r5]
 	add r5, r5, #1
 	b .L57
 .L58:
@@ -960,10 +946,8 @@ _PrintState:
 	cmp r6, r0
 	bgt .L60
 @     p := choice[k];
-	set r0, _choice
-	lsl r1, r6, #2
-	add r0, r0, r1
-	ldr r0, [r0]
+	ldr r0, =_choice
+	ldr r0, [r0, r6, LSL #2]
 	str r0, [fp, #-4]
 .L61:
 @     while p^.column^.name <> 'Q' do p := p^.right end;
@@ -992,8 +976,7 @@ _PrintState:
 	mov r2, #9
 	mul r2, r4, r2
 	add r1, r1, r2
-	add r1, r1, r5
-	strb r0, [r1]
+	strb r0, [r1, r5]
 	add r6, r6, #1
 	b .L59
 .L60:
@@ -1026,14 +1009,14 @@ _Solve:
 	stmfd sp!, {r4-r10, fp, ip, lr}
 	mov fp, sp
 @   if root^.next = root then
-	set r0, _root
+	ldr r0, =_root
 	ldr r7, [r0]
 	ldr r0, [r7, #24]
 	cmp r0, r7
 	bne .L69
 @     print_string("Solution:"); newline();
-	mov r1, #9
-	set r0, g5
+	mov r1, #10
+	ldr r0, =g5
 	bl print_string
 	bl newline
 @     PrintState(level); return
@@ -1061,15 +1044,13 @@ _Solve:
 	beq .L75
 @     choice[level] := p;
 	ldr r7, [fp, #40]
-	set r0, _choice
-	lsl r1, r7, #2
-	add r0, r0, r1
-	str r5, [r0]
+	ldr r0, =_choice
+	str r5, [r0, r7, LSL #2]
 @     print_num(level); print_string(":"); PrintRow(p);
 	mov r0, r7
 	bl print_num
-	mov r1, #1
-	set r0, g6
+	mov r1, #2
+	ldr r0, =g6
 	bl print_string
 	mov r0, r5
 	bl _PrintRow
@@ -1119,11 +1100,9 @@ _ChooseRow:
 @   choice[level] := p; level := level+1;
 	ldr r5, [fp, #40]
 	ldr r0, [fp, #44]
-	set r1, _choice
+	ldr r1, =_choice
 	ldr r2, [r5]
-	lsl r2, r2, #2
-	add r1, r1, r2
-	str r0, [r1]
+	str r0, [r1, r2, LSL #2]
 	ldr r0, [r5]
 	add r0, r0, #1
 	str r0, [r5]
@@ -1136,8 +1115,8 @@ _ChooseRow:
 	cmp r0, #0
 	beq .L87
 @       print_string("Conflict for "); PrintCol(q^.column); newline()
-	mov r1, #13
-	set r0, g7
+	mov r1, #14
+	ldr r0, =g7
 	bl print_string
 	ldr r0, [r4, #16]
 	bl _PrintCol
@@ -1177,12 +1156,11 @@ _Input:
 	cmp r5, r0
 	bgt .L92
 @       ch := input[10*i+j];
-	set r0, g8
+	ldr r0, =g8
 	mov r1, #10
 	mul r1, r4, r1
 	add r0, r0, r1
-	add r0, r0, r5
-	ldrb r7, [r0]
+	ldrb r7, [r0, r5]
 	strb r7, [fp, #-1]
 @       print_char(ch);
 	mov r0, r7
@@ -1194,16 +1172,14 @@ _Input:
 @         k := ord(ch) - ord('1');
 	sub r6, r7, #49
 @ 	ChooseRow(level, boardMove[i][j][k])
-	set r0, _boardMove
+	ldr r0, =_boardMove
 	mov r1, #324
 	mul r1, r4, r1
 	add r0, r0, r1
 	mov r1, #36
 	mul r1, r5, r1
 	add r0, r0, r1
-	lsl r1, r6, #2
-	add r0, r0, r1
-	ldr r1, [r0]
+	ldr r1, [r0, r6, LSL #2]
 	ldr r0, [fp, #40]
 	bl _ChooseRow
 .L95:
@@ -1225,15 +1201,14 @@ pmain:
 @   MakePuzzle();
 	bl _MakePuzzle
 @   level := 0;
-	set r4, _level
+	ldr r4, =_level
 	mov r0, #0
 	str r0, [r4]
 @   Input(level);
 	mov r0, r4
 	bl _Input
 @   Solve(level)
-	set r0, _level
-	ldr r0, [r0]
+	ldr r0, [r4]
 	bl _Solve
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
@@ -1246,7 +1221,7 @@ pmain:
 	.comm _boardMove, 2916, 4
 	.comm _choice, 324, 4
 	.comm _level, 4, 4
-	.data
+	.section .rodata
 g1:
 	.byte 32
 	.byte 0

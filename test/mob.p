@@ -25,11 +25,10 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc A(k: integer; proc x1(): integer; proc x2(): integer; 
-	.text
+	.section .text
 _A:
 	mov ip, sp
 	stmfd sp!, {r0-r3}
@@ -85,7 +84,7 @@ _B:
 	str r0, [sp]
 	ldr r3, [r4, #44]
 	mov r2, r4
-	set r1, _B
+	ldr r1, =_B
 	ldr r0, [r4, #40]
 	bl _A
 	ldmfd fp, {r4-r10, fp, sp, pc}
@@ -127,11 +126,11 @@ pmain:
 	mov fp, sp
 	sub sp, sp, #32
 @   print_num(A(10, One, MOne, MOne, One, Zero)); newline()
-	set r4, _One
-	set r5, _MOne
+	ldr r4, =_One
+	ldr r5, =_MOne
 	mov r0, #0
 	str r0, [sp, #24]
-	set r0, _Zero
+	ldr r0, =_Zero
 	str r0, [sp, #20]
 	mov r0, #0
 	str r0, [sp, #16]

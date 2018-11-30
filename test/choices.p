@@ -50,11 +50,10 @@ def
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc choose(k, n: integer; proc suffix());
-	.text
+	.section .text
 _choose:
 	mov ip, sp
 	stmfd sp!, {r0-r3}
@@ -84,7 +83,7 @@ _choose:
 	bl _choose
 @       choose(k-1, n-1, suffix1)
 	mov r3, fp
-	set r2, _suffix1
+	ldr r2, =_suffix1
 	ldr r0, [fp, #44]
 	sub r1, r0, #1
 	ldr r0, [fp, #40]
@@ -100,7 +99,7 @@ _suffix1:
 	stmfd sp!, {r4-r10, fp, ip, lr}
 	mov fp, sp
 @     print_char(letters[n-1]); suffix()
-	set r0, g1
+	ldr r0, =g1
 	ldr r1, [fp, #24]
 	ldr r1, [r1, #44]
 	add r0, r0, r1
@@ -127,14 +126,14 @@ pmain:
 	mov fp, sp
 @   choose(3, 6, null)
 	mov r3, #0
-	set r2, _null
+	ldr r2, =_null
 	mov r1, #6
 	mov r0, #3
 	bl _choose
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
-	.data
+	.section .rodata
 g1:
 	.byte 97, 98, 99, 100, 101, 102
 	.byte 0

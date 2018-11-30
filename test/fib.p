@@ -20,11 +20,10 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc fib(n: integer): integer;
-	.text
+	.section .text
 _fib:
 	mov ip, sp
 	stmfd sp!, {r0-r1}

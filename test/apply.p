@@ -34,11 +34,10 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc apply(proc f(x: integer));
-	.text
+	.section .text
 _apply:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
@@ -60,11 +59,11 @@ _beta:
 	mov fp, sp
 @   apply(f);
 	mov r1, fp
-	set r0, _f
+	ldr r0, =_f
 	bl _apply
 @   apply(g)
 	mov r1, fp
-	set r0, _g
+	ldr r0, =_g
 	bl _apply
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg

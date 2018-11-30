@@ -31,26 +31,23 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc swap(i, j: integer);
-	.text
+	.section .text
 _swap:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
 	stmfd sp!, {r4-r10, fp, ip, lr}
 	mov fp, sp
 @   t := a[i]; 
-	set r5, _a
+	ldr r5, =_a
 	ldr r0, [fp, #40]
-	lsl r0, r0, #2
-	add r6, r5, r0
+	add r6, r5, r0, LSL #2
 	ldr r4, [r6]
 @   a[i] := a[j]; 
 	ldr r0, [fp, #44]
-	lsl r0, r0, #2
-	add r5, r5, r0
+	add r5, r5, r0, LSL #2
 	ldr r0, [r5]
 	str r0, [r6]
 @   a[j] := t
@@ -69,10 +66,8 @@ _main:
 .L3:
 	cmp r4, r5
 	bgt .L4
-	set r0, _a
-	lsl r1, r4, #2
-	add r0, r0, r1
-	str r4, [r0]
+	ldr r0, =_a
+	str r4, [r0, r4, LSL #2]
 	add r4, r4, #1
 	b .L3
 .L4:
@@ -86,10 +81,8 @@ _main:
 .L5:
 	cmp r4, r6
 	bgt .L6
-	set r0, _a
-	lsl r1, r4, #2
-	add r0, r0, r1
-	ldr r0, [r0]
+	ldr r0, =_a
+	ldr r0, [r0, r4, LSL #2]
 	bl print_num
 	add r4, r4, #1
 	b .L5

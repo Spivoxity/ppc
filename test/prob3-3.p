@@ -21,11 +21,10 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
 @ proc double(x: integer): integer;
-	.text
+	.section .text
 _double:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
@@ -57,7 +56,7 @@ pmain:
 	mov fp, sp
 @   print_num(apply3(double));
 	mov r1, #0
-	set r0, _double
+	ldr r0, =_double
 	bl _apply3
 	bl print_num
 @   newline()

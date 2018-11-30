@@ -24,61 +24,58 @@ end.
 
 (*[[
 @ picoPascal compiler output
-	.include "fixup.s"
 	.global pmain
 
-	.text
+	.section .text
 pmain:
 	mov ip, sp
 	stmfd sp!, {r4-r10, fp, ip, lr}
 	mov fp, sp
 @   y := 200000000;
-	set r0, #200000000
-	set r1, _y
+	ldr r0, =200000000
+	ldr r1, =_y
 	str r0, [r1]
 @   a := 0;
 	mov r0, #0
-	set r1, _a
+	ldr r1, =_a
 	str r0, [r1]
 @   b := 20000;
-	set r0, #20000
-	set r1, _b
+	ldr r0, =20000
+	ldr r1, =_b
 	str r0, [r1]
 .L2:
 @   while a+1 < b do
-	set r0, _a
-	ldr r4, [r0]
-	set r0, _b
-	ldr r5, [r0]
-	add r0, r4, #1
-	cmp r0, r5
+	ldr r4, =_a
+	ldr r5, [r4]
+	ldr r0, =_b
+	ldr r6, [r0]
+	add r0, r5, #1
+	cmp r0, r6
 	bge .L4
 @     m := (a+b) div 2;
-	mov r1, #2
-	add r0, r4, r5
-	bl int_div
-	set r1, _m
-	str r0, [r1]
+	add r0, r5, r6
+	asr r5, r0, #1
+	ldr r0, =_m
+	str r5, [r0]
 @     if m*m <= y then
-	mul r1, r0, r0
-	set r2, _y
-	ldr r2, [r2]
-	cmp r1, r2
+	mul r0, r5, r5
+	ldr r1, =_y
+	ldr r1, [r1]
+	cmp r0, r1
 	bgt .L6
 @       a := m
-	set r1, _a
-	str r0, [r1]
+	str r5, [r4]
 	b .L2
 .L6:
 @       b := m
-	set r0, _m
+	ldr r0, =_m
 	ldr r0, [r0]
-	set r1, _b
+	ldr r1, =_b
 	str r0, [r1]
 	b .L2
 .L4:
 @   print_num(a); newline()
-	set r0, _a
+	ldr r0, =_a
 	ldr r0, [r0]
 	bl print_num
 	bl newline
