@@ -60,8 +60,8 @@ module ARM = struct
        R4-R9  callee-save temps
        R10    static link
        R11=fp frame pointer
-       R12=sp stack pointer
-       R13=ip temp for linkage
+       R12=ip temp for linkage
+       R13=sp stack pointer
        R14=lr link register
        R15=pc program counter 
 
@@ -69,12 +69,12 @@ module ARM = struct
 
     let reg_names =
       [| "r0"; "r1"; "r2"; "r3"; "r4"; "r5"; "r6"; "r7";
-          "r8"; "r9"; "r10"; "fp"; "sp"; "ip"; "lr"; "pc" |]
+          "r8"; "r9"; "r10"; "fp"; "ip"; "sp"; "lr"; "pc" |]
 
     let reg i = Reg i
     let r_fp = Reg 11
-    let r_sp = Reg 12
-    let r_ip = Reg 13
+    let r_ip = Reg 12
+    let r_sp = Reg 13
     let r_lr = Reg 14
     let r_pc = Reg 15
 
