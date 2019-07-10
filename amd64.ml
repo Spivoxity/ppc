@@ -288,7 +288,9 @@ module AMD64 = struct
         put_inst "movq" [AddrR ("", -8, rBP); reg64 r10]
 
     let postlude () =
-      put_inst "addq" [reg64 rSP; Const (!frame + 8 * !nargs)];
+      let s = !frame + 8 * !nargs in
+      if s > 0 then
+        put_inst "addq" [reg64 rSP; Const s];
       List.iter (function r -> put_inst "popq" [reg64 r])
         (List.rev (Util.take !nsaved stable));
       put_inst "popq" [reg64 rBP];
