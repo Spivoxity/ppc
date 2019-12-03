@@ -7,6 +7,10 @@ open Target
 open Print
 open Optree
 
+let zero = Int32.zero
+let one = Int32.one
+let int32 n = Int32.of_int n
+
 module ARM = struct
   module Metrics = struct
     let int_rep = { r_size = 4; r_align = 4 }
@@ -90,14 +94,14 @@ module ARM = struct
   module Emitter = struct
     (* |operand| -- type of operands for assembly instructions *)
     type operand =		  (* VALUE	  ASM SYNTAX       *)
-        Const of int 		  (* val	  #val	           *)
+        Const of int32 		  (* val	  #val	           *)
       | Register of reg		  (* [reg]	  reg	           *)
       | Shift of reg * int        (* [reg]<<n     reg, LSL #n      *)
       | Index of reg * int   	  (* [reg]+val    [reg, #val]      *)
       | Index2 of reg * reg * int (* [r1]+[r2]<<n [r1, r2, LSL #n] *)
       | Global of symbol	  (* lab	  lab	           *)
       | Label of codelab	  (* lab	  lab              *)
-      | Literal of symbol * int   (* lab+val	  =lab+val         *)
+      | Literal of symbol * int32 (* lab+val	  =lab+val         *)
 
     let anyreg = Register R_any
     let anytemp = Register R_temp
@@ -123,7 +127,7 @@ module ARM = struct
     (* |fRand| -- format operand for printing *)
     let fRand =
       function
-          Const v -> fMeta "#$" [fNum v]
+          Const v -> fMeta "#$" [fNum32 v]
         | Register reg -> fReg reg
         | Shift (reg, n) ->
             fMeta "$, LSL #$" [fReg reg; fNum n]
@@ -138,10 +142,10 @@ module ARM = struct
         | Global lab -> fStr lab
         | Label lab -> fMeta ".$" [fLab lab]
         | Literal (x, n) ->
-            if x = "" then fMeta "=$" [fNum n]
-            else if n = 0 then fMeta "=$" [fStr x]
-            else if n > 0 then fMeta "=$+$" [fStr x; fNum n]
-            else fMeta "=$-$" [fStr x; fNum (-n)]
+            if x = "" then fMeta "=$" [fNum32 n]
+            else if n = zero then fMeta "=$" [fStr x]
+            else if n > zero then fMeta "=$+$" [fStr x; fNum32 n]
+            else fMeta "=$-$" [fStr x; fNum32 (Int32.neg n)]
 
     (* |preamble| -- emit start of assembler file *)
     let preamble () =
@@ -240,20 +244,21 @@ module ARM = struct
     (* Tests for fitting in various immediate fields *)
 
     (* |fits_offset| -- test for fitting in offset field of address *)
-    let fits_offset x = (-4096 < x && x < 4096)
+    let fits_offset x = (int32 (-4096) < x && x < int32 4096)
 
     (* |fits_immed| -- test for fitting in immediate field *)
     let fits_immed x =
       (* A conservative approximation, using shifts instead of rotates *)
       let rec reduce r =
-        if r land 3 <> 0 then r else reduce (r lsr 2) in
-      x = 0 || x > 0 && reduce x < 256
+        if Int32.logand r (int32 3) <> zero then r
+        else reduce (Int32.shift_right_logical r 2) in
+      x = zero || x > zero && reduce x < int32 256
 
     (* |fits_move| -- test for fitting in immediate move *)
-    let fits_move x = fits_immed x || fits_immed (lnot x)
+    let fits_move x = fits_immed x || fits_immed (Int32.lognot x)
 
     (* |fits_add| -- test for fitting in immediate add *)
-    let fits_add x = fits_immed x || fits_immed (-x)
+    let fits_add x = fits_immed x || fits_immed (Int32.neg x)
 
     (* The main part of the code generator consists of a family of functions
        eval_X t, each generating code for a tree t, leaving the value in
@@ -279,8 +284,8 @@ module ARM = struct
         let v1 = eval_reg t1 anyreg in
         let v2 = eval_rand t2 fits_add in
         gen "cmp" [v1; v2];
-        let v = gen_reg "mov" [r; Const 0] in
-        emit op [v; Const 1];
+        let v = gen_reg "mov" [r; Const zero] in
+        emit op [v; Const one];
         v in
 
       match t with
@@ -289,16 +294,16 @@ module ARM = struct
         | <CONST k> ->
             gen_reg "ldr" [r; Literal ("", k)]
         | <NIL> ->
-            gen_reg "mov" [r; Const 0]
+            gen_reg "mov" [r; Const zero]
         | <LOCAL 0> ->
             gen_move "mov" [r; Register r_fp]
-        | <LOCAL n> when fits_add n ->
-            gen_reg "add" [r; Register r_fp; Const n]
+        | <LOCAL n> when fits_add (int32 n) ->
+            gen_reg "add" [r; Register r_fp; Const (int32 n)]
         | <LOCAL n> ->
-            emit "ldr" [Register r_ip; Literal ("", n)];
+            emit "ldr" [Register r_ip; Literal ("", int32 n)];
             gen_reg "add" [r; Register r_fp; Register r_ip]
         | <GLOBAL x> ->
-            gen_reg "ldr" [r; Literal (x, 0)]
+            gen_reg "ldr" [r; Literal (x, zero)]
         | <TEMPW n> ->
             gen_move "mov" [r; Register (Alloc.use_temp n)]
         | <(LOADW|LOADC), <REGVAR i>> ->
@@ -314,7 +319,7 @@ module ARM = struct
         | <MONOP Uminus, t1> -> unary "neg" t1
         | <MONOP Not, t1> -> 
             let v1 = eval_reg t1 anyreg in
-            gen_reg "eor" [r; v1; Const 1]
+            gen_reg "eor" [r; v1; Const one]
         | <MONOP BitNot, t1> -> unary "mvn" t1
 
         | <OFFSET, t1, <CONST n>> when fits_add n ->
@@ -351,14 +356,14 @@ module ARM = struct
             let v2 = eval_rand t2 fits_add in
             release v2;
             emit "cmp" [v1; v2];
-            emit "ldrhs" [Register (reg 0); Literal ("", !line)];
+            emit "ldrhs" [Register (reg 0); Literal ("", int32 !line)];
             emit "blhs" [Global "check"];
             v1
 
         | <NCHECK, t1> ->
             let v1 = eval_reg t1 r in
-            emit "cmp" [v1; Const 0];
-            emit "ldreq" [Register (reg 0); Literal ("", !line)];
+            emit "cmp" [v1; Const zero];
+            emit "ldreq" [Register (reg 0); Literal ("", int32 !line)];
             emit "bleq" [Global "nullcheck"];
             v1
 
@@ -370,28 +375,28 @@ module ARM = struct
       (* returns |Const| or |Register| *)
       match t with
           <CONST k> when fits k -> Const k
-        | <NIL> -> Const 0
-        | <BINOP Lsl, t1, <CONST n>> when n < 32 ->
+        | <NIL> -> Const zero
+        | <BINOP Lsl, t1, <CONST n>> when n < int32 32 ->
             let v1 = eval_reg t1 anyreg in
-            Shift (reg_of v1, n)
+            Shift (reg_of v1, Int32.to_int n)
         | _ -> eval_reg t anyreg
 
     (* |eval_addr| -- evaluate to form an address for ldr or str *)
     and eval_addr =
       (* returns |Index| or |Index2| *)
       function
-          <LOCAL n> when fits_offset n ->
+          <LOCAL n> when fits_offset (int32 n) ->
             Index (r_fp, n) 
         | <LOCAL n> ->
-            let r = gen_reg "ldr" [anyreg; Literal ("", n)] in
+            let r = gen_reg "ldr" [anyreg; Literal ("", int32 n)] in
             Index2 (r_fp, reg_of r, 0)
         | <OFFSET, t1, <CONST n>> when fits_offset n ->
             let v1 = eval_reg t1 anyreg in
-            Index (reg_of v1, n)
-        | <OFFSET, t1, <BINOP Lsl, t2, <CONST n>>> when n < 32 ->
+            Index (reg_of v1, Int32.to_int n)
+        | <OFFSET, t1, <BINOP Lsl, t2, <CONST n>>> when n < int32 32 ->
             let v1 = eval_reg t1 anyreg in
             let v2 = eval_reg t2 anyreg in
-            Index2 (reg_of v1, reg_of v2, n)
+            Index2 (reg_of v1, reg_of v2, Int32.to_int n)
         | <OFFSET, t1, t2> ->
             let v1 = eval_reg t1 anyreg in
             let v2 = eval_reg t2 anyreg in
@@ -482,7 +487,7 @@ module ARM = struct
                so in the ldrlo instruction below, pc points to the branch
                table itself. *)
             let v1 = eval_reg t1 anyreg in
-            emit "cmp" [v1; Const (List.length table)];
+            emit "cmp" [v1; Const (int32 (List.length table))];
             gen "ldrlo" [Register r_pc; Index2 (r_pc, reg_of v1, 2)];
             gen "b" [Label deflab];
             List.iter (fun lab -> emit ".word" [Label lab]) table

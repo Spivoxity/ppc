@@ -27,6 +27,7 @@ let fStr s vt =
   for i = 0 to String.length s - 1 do vt.outch s.[i] done
 
 let fNum n = fStr (string_of_int n)
+let fNum32 n = fStr (Int32.to_string n)
 let fFlo x = fStr (string_of_float x)
 let fBool b = fStr (if b then "true" else "false")
 let fExt g vt = g vt.prf

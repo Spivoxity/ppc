@@ -7,6 +7,10 @@ open Target
 open Print
 open Optree
 
+let int32 n = Int32.of_int n
+let zero = Int32.zero
+let one = Int32.one
+
 module Thumb = struct
   module Metrics = struct
     let int_rep = { r_size = 4; r_align = 4 }
@@ -83,14 +87,14 @@ module Thumb = struct
 
     (* |operand| -- type of operands for assembly instructions *)
     type operand =		  (* VALUE	  ASM SYNTAX       *)
-        Const of int 		  (* val	  #val	           *)
+        Const of int32 		  (* val	  #val	           *)
       | Register of reg		  (* [reg]	  reg	           *)
       | Shift of reg * int        (* [reg]<<n     reg, LSL #n      *)
       | Index of reg * int   	  (* [reg]+val    [reg, #val]      *)
       | Index2 of reg * reg       (* [r1]+[r2]    [r1, r2]         *)
       | Global of symbol	  (* lab	  lab	           *)
       | Label of codelab	  (* lab	  lab              *)
-      | Literal of symbol * int   (* lab+val	  =lab+val         *)
+      | Literal of symbol * int32 (* lab+val	  =lab+val         *)
 
     let reg_of =
       function
@@ -121,7 +125,7 @@ module Thumb = struct
     (* |fRand| -- format operand for printing *)
     let fRand =
       function
-          Const v -> fMeta "#$" [fNum v]
+          Const v -> fMeta "#$" [fNum32 v]
         | Register reg -> fReg reg
         | Shift (reg, n) ->
             fMeta "$, LSL #$" [fReg reg; fNum n]
@@ -133,10 +137,10 @@ module Thumb = struct
         | Global lab -> fStr lab
         | Label lab -> fMeta ".$" [fLab lab]
         | Literal (x, n) ->
-            if x = "" then fMeta "=$" [fNum n]
-            else if n = 0 then fMeta "=$" [fStr x]
-            else if n > 0 then fMeta "=$+$" [fStr x; fNum n]
-            else fMeta "=$-$" [fStr x; fNum (-n)]
+            if x = "" then fMeta "=$" [fNum32 n]
+            else if n = zero then fMeta "=$" [fStr x]
+            else if n > zero then fMeta "=$+$" [fStr x; fNum32 n]
+            else fMeta "=$-$" [fStr x; fNum32 (Int32.neg n)]
 
     (* |preamble| -- emit start of assembler file *)
     let preamble () =
@@ -253,10 +257,10 @@ module Thumb = struct
     (* Tests for fitting in various immediate fields *)
 
     (* |fits_immed3| -- test for fitting in immediate field *)
-    let fits_immed3 x = (x >= 0 && x < 4)
+    let fits_immed3 x = (x >= zero && x < int32 4)
 
     (* |fits_immed8| -- test for fitting in immediate field *)
-    let fits_immed8 x = (x >= 0 && x < 256)
+    let fits_immed8 x = (x >= zero && x < int32 256)
 
     (* The main part of the code generator consists of a family of functions
        eval_X t, each generating code for a tree t, leaving the value in
@@ -293,18 +297,18 @@ module Thumb = struct
       (* Comparison with boolean result *)
       and compare op t1 t2 =
         let lab = label () in
-        let v = gen_reg "movs" [r; Const 1] in
+        let v = gen_reg "movs" [r; Const one] in
         let v1 = eval_reg t1 anyreg in
         let v2 = eval_reg t2 anyreg in
         gen "cmp" [v1; v2];
         emit op [Label lab];
-        emit "movs" [v; Const 0];
+        emit "movs" [v; Const zero];
         emit_lab lab;
         v
 
       and shift op t1 t2 =
         match t2 with
-            <CONST n> when n >= 0 && n < 32 ->
+            <CONST n> when n >= zero && n < int32 32 ->
               let v1 = eval_reg t1 anyreg in
               gen_reg op [r; v1; Const n]
           | _ ->
@@ -318,22 +322,23 @@ module Thumb = struct
         | <CONST k> ->
             gen_reg "ldr" [r; Literal ("", k)]
         | <NIL> ->
-            gen_reg "movs" [r; Const 0]
-        | <LOCAL n> when fits_immed8 ((!space+n) / 4) ->
+            gen_reg "movs" [r; Const zero]
+        | <LOCAL n> when fits_immed8 (int32 ((!space+n) / 4)) ->
             let a = (!space+n) mod 4 in
             if a = 0 then
-              gen_reg "add" [r; Register r_sp; Const (!space+n)]
+              gen_reg "add" [r; Register r_sp; Const (int32 (!space+n))]
             else begin
               let v1 =
-                gen_reg "add" [anyreg; Register r_sp; Const (!space+n-a)] in
-              gen_reg "adds" [r; v1; Const a]
+                gen_reg "add" [anyreg; Register r_sp;
+                  Const (int32 (!space+n-a))] in
+              gen_reg "adds" [r; v1; Const (int32 a)]
             end
         | <LOCAL n> ->
-            let v1 = gen_reg "ldr" [r; Literal ("", !space+n)] in
+            let v1 = gen_reg "ldr" [r; Literal ("", int32 (!space+n))] in
             emit "add" [v1; Register r_sp];
             v1
         | <GLOBAL x> ->
-            gen_reg "ldr" [r; Literal (x, 0)]
+            gen_reg "ldr" [r; Literal (x, zero)]
         | <TEMPW n> ->
             gen_move "mov" [r; Register (Alloc.use_temp n)]
         | <(LOADW|LOADC), <REGVAR i>> ->
@@ -351,7 +356,7 @@ module Thumb = struct
         | <MONOP Uminus, t1> -> unary "negs" t1
         | <MONOP Not, t1> -> 
             let v1 = eval_reg t1 (suggest r) in
-            let v2 = gen_reg "movs" [anyreg; Const 1] in
+            let v2 = gen_reg "movs" [anyreg; Const one] in
             gen_reg "*movs/eors" [r; v1; v2]
         | <MONOP BitNot, t1> -> unary "mvns" t1
 
@@ -383,7 +388,7 @@ module Thumb = struct
             release v2;
             emit "cmp" [v1; v2];
             emit "blo" [Label lab];
-            emit "ldr" [Register (reg 0); Literal ("", !line)];
+            emit "ldr" [Register (reg 0); Literal ("", int32 !line)];
             emit "bl" [Global "check"];
             emit_lab lab;
             v1
@@ -391,9 +396,9 @@ module Thumb = struct
         | <NCHECK, t1> ->
             let lab = label () in
             let v1 = eval_reg t1 r in
-            emit "cmp" [v1; Const 0];
+            emit "cmp" [v1; Const zero];
             emit "bne" [Label lab];
-            emit "ldr" [Register (reg 0); Literal ("", !line)];
+            emit "ldr" [Register (reg 0); Literal ("", int32 !line)];
             emit "bl" [Global "nullcheck"];
             emit_lab lab;
             v1
@@ -409,9 +414,10 @@ module Thumb = struct
             let a = (!space+n) mod 4 in
             let v1 = eval_reg <LOCAL (n-a)> anyreg in
             Index (reg_of v1, a)
-        | <OFFSET, t1, <CONST n>> when n >= 0 && n < limit ->
+        | <OFFSET, t1, <CONST n>>
+              when n >= zero && n < int32 limit ->
             let v1 = eval_reg t1 anyreg in
-            Index (reg_of v1, n)
+            Index (reg_of v1, Int32.to_int n)
         | <OFFSET, t1, t2> ->
             let v1 = eval_reg t1 anyreg in
             let v2 = eval_reg t2 anyreg in
@@ -509,9 +515,9 @@ module Thumb = struct
         | <JCASE (table, deflab), t1> ->
             let base = label () and tbl = label () in
             let v1 = eval_reg t1 anyreg in
-            emit "cmp" [v1; Const (List.length table)];
+            emit "cmp" [v1; Const (int32 (List.length table))];
             emit "bhs" [Label deflab];
-            let v2 = gen_reg "lsls" [anyreg; v1; Const 1] in
+            let v2 = gen_reg "lsls" [anyreg; v1; Const one] in
             let v3 = gen_reg "adr" [anyreg; Label tbl] in
             let v4 = gen_reg "ldrsh" [anyreg; Index2 (reg_of v3, reg_of v2)] in
             emit_lab base;

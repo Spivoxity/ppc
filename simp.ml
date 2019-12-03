@@ -24,47 +24,47 @@ let rec simp t =
   
     (* Static bound checks *)
     | <BOUND, <CONST k>, <CONST b>> -> 
-	if 0 <= k && k < b then <CONST k> else t
+	if Int32.zero <= k && k < b then <CONST k> else t
 
     (* Simplifications -- mainly directed at addressing calculations *)
     | <BINOP Plus, <BINOP Plus, t1, <CONST a>>, <CONST b>> ->
-        simp <BINOP Plus, t1, <CONST (a+b)>>
+        simp <BINOP Plus, t1, <CONST (Int32.add a b)>>
 
-    | <BINOP Plus, t1, <CONST a>> when a < 0 ->
-      	<BINOP Minus, t1, <CONST (-a)>>
-    | <BINOP Minus, t1, <CONST a>> when a < 0 -> 
-	<BINOP Plus, t1, <CONST (-a)>>
+    | <BINOP Plus, t1, <CONST a>> when a < Int32.zero ->
+      	<BINOP Minus, t1, <CONST (Int32.neg a)>>
+    | <BINOP Minus, t1, <CONST a>> when a < Int32.zero -> 
+	<BINOP Plus, t1, <CONST (Int32.neg a)>>
 
     | <OFFSET, <LOCAL a>, <CONST b>> ->
-	<LOCAL (a+b)>
+	<LOCAL (a + (Int32.to_int b))>
     | <OFFSET, <OFFSET, t1, <CONST a>>, <CONST b>> ->
-        simp <OFFSET, t1, <CONST (a+b)>>
-    | <OFFSET, t1, <CONST 0>> ->
+        simp <OFFSET, t1, <CONST (Int32.add a b)>>
+    | <OFFSET, t1, <CONST z>> when z = Int32.zero ->
         t1
     | <BINOP Times, <BINOP Times, t1, <CONST a>>, <CONST b>> ->
-	simp <BINOP Times, t1, <CONST (a * b)>>
+	simp <BINOP Times, t1, <CONST (Int32.mul a b)>>
     | <BINOP Times, <BINOP Plus, t1, <CONST a>>, <CONST b>> ->
 	simp <BINOP Plus, 
 	  simp <BINOP Times, t1, <CONST b>>, 
-	  <CONST (a*b)>>
+	  <CONST (Int32.mul a b)>>
     | <BINOP Times, <BINOP Minus, t1, <CONST a>>, <CONST b>> ->
 	simp <BINOP Minus, 
 	  simp <BINOP Times, t1, <CONST b>>, 
-	  <CONST (a*b)>>
+	  <CONST (Int32.mul a b)>>
     | <OFFSET, t1, <BINOP Plus, t2, t3>> ->
 	simp <OFFSET, simp <OFFSET, t1, t2>, t3>
     | <OFFSET, t1, <BINOP Minus, t2, <CONST n>>> ->
-	simp <OFFSET, simp <OFFSET, t1, t2>, <CONST (-n)>>
-    | <BINOP Times, t1, <CONST 1>> -> t1
-    | <BINOP Times, t1, <CONST n>> when n > 0 -> 
+	simp <OFFSET, simp <OFFSET, t1, t2>, <CONST (Int32.neg n)>>
+    | <BINOP Times, t1, <CONST u>> when u = Int32.one -> t1
+    | <BINOP Times, t1, <CONST n>> when n > Int32.zero -> 
         begin try 
           let k = Util.exact_log2 n in
-          <BINOP Lsl, t1, <CONST k>>
+          <BINOP Lsl, t1, <CONST (Int32.of_int k)>>
         with Not_found ->
           t
         end
-    | <BINOP Plus, t1, <CONST 0>> -> t1
-    | <BINOP Minus, t1, <CONST 0>> -> t1
+    | <BINOP Plus, t1, <CONST z>> when z = Int32.zero -> t1
+    | <BINOP Minus, t1, <CONST z>> when z = Int32.zero -> t1
 
     (* Swap operands to put constant on right *)
     | <BINOP w, t1, t2> when is_const t1 ->

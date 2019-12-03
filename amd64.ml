@@ -112,7 +112,7 @@ module AMD64 = struct
 
     (* |operand| -- type of operands for assembly instructions *)
     type operand =                  
-        Const of int
+        Const of int32
       | Register of reg * int
       | Addr of symbol * int
       | AddrR of symbol * int * reg
@@ -164,7 +164,7 @@ module AMD64 = struct
     (* |fRand| -- format operand for printing *)
     let fRand =
       function
-          Const v -> fMeta "$$" [fChr '$'; fNum v]
+          Const v -> fMeta "$$" [fChr '$'; fNum32 v]
         | Register (r, w) ->
             begin match (r, w) with
                 (Reg i, 8) -> fStr reg8_names.(i)
@@ -283,14 +283,14 @@ module AMD64 = struct
       done;
       put_inst "movq" [reg64 rBP; reg64 rSP];
       if !frame > 0 then
-        put_inst "subq" [reg64 rSP; Const !frame];
+        put_inst "subq" [reg64 rSP; Const (Int32.of_int !frame)];
       if !level > 0 then
         put_inst "movq" [AddrR ("", -8, rBP); reg64 r10]
 
     let postlude () =
       let s = !frame + 8 * !nargs in
       if s > 0 then
-        put_inst "addq" [reg64 rSP; Const s];
+        put_inst "addq" [reg64 rSP; Const (Int32.of_int s)];
       List.iter (function r -> put_inst "popq" [reg64 r])
         (List.rev (Util.take !nsaved stable));
       put_inst "popq" [reg64 rBP];
@@ -330,7 +330,7 @@ module AMD64 = struct
     (* |eval_reg| -- evaluate expression with result in a register *)
     let rec eval_reg t r =
       match t with
-          <CONST 0> ->
+          <CONST z> when z = Int32.zero ->
             let v1 = resize 32 (fix_reg r) in
             emit "xorl" [v1; v1]; v1
         | <CONST k> ->
@@ -368,14 +368,14 @@ module AMD64 = struct
             gen_reg32 "*movl/negl" [r; v1]
         | <MONOP Not, t1> ->
             let v1 = eval_reg t1 r in
-            gen_reg32 "*movl/xorl" [r; v1; Const 1]
+            gen_reg32 "*movl/xorl" [r; v1; Const Int32.one]
         | <MONOP BitNot, t1> ->
             let v1 = eval_reg t1 r in
             gen_reg32 "*movl/notl" [r; v1]
-        | <BINOP Plus, t1, <CONST 1>> ->
+        | <BINOP Plus, t1, <CONST u>> when u = Int32.one ->
             let v1 = eval_reg t1 r in
             gen_reg32 "*movl/incl" [r; v1]     
-        | <BINOP Minus, t1, <CONST 1>> ->
+        | <BINOP Minus, t1, <CONST u>> when u = Int32.one ->
             let v1 = eval_reg t1 r in
             gen_reg32 "*movl/decl" [r; v1]
 
@@ -410,7 +410,7 @@ module AMD64 = struct
 
     and shift op r t1 t2 =
       match t2 with
-          <CONST n> when 0 <= n && n < 32 ->
+          <CONST n> when Int32.zero <= n && n < Int32.of_int 32 ->
               let v1 = eval_reg t1 r in
               gen_reg32 op [r; v1; Const n]
         | _ ->
@@ -459,7 +459,7 @@ module AMD64 = struct
 
     and eval_rand64 =
       function
-          <NIL> -> Const 0
+          <NIL> -> Const Int32.zero
         | <LOADQ, <REGVAR i>> -> reg64 (eval_regvar i)
         | <LOADQ, t1> -> eval_addr t1
         | t -> eval_reg t anyreg
@@ -473,22 +473,24 @@ module AMD64 = struct
             if !pic_mode then AddrR (x, 0, rIP) else Addr (x, 0)
         | <OFFSET, t1, <CONST n>> ->
             let v1 = eval_addr t1 in
+            let n2 = Int32.to_int n in
             (match v1 with
-                Addr (x, a) -> Addr (x, a+n)
-              | AddrR (x, a, r) -> AddrR (x, a+n, r)
-              | AddrRS (x, a, r, s) -> AddrRS (x, a+n, r, s)
-              | AddrRRS (x, a, r1, r2, s) -> AddrRRS(x, a+n, r1, r2, s)
+                Addr (x, a) -> Addr (x, a+n2)
+              | AddrR (x, a, r) -> AddrR (x, a+n2, r)
+              | AddrRS (x, a, r, s) -> AddrRS (x, a+n2, r, s)
+              | AddrRRS (x, a, r1, r2, s) -> AddrRRS(x, a+n2, r1, r2, s)
               | _ -> failwith (sprintf "address $" [fRand v1]))
-        | <OFFSET, t1, <BINOP Lsl, t2, <CONST s>>> when s <= 3 ->
+        | <OFFSET, t1, <BINOP Lsl, t2, <CONST s>>> when s <= Int32.of_int 3 ->
             let v1 = eval_addr t1 in
             let v2 = eval_offset t2 in
+            let s3 = Int32.to_int s in
             (match v1 with
-                Addr (x, a) -> AddrRS (x, 0, reg_of v2, s)
+                Addr (x, a) -> AddrRS (x, 0, reg_of v2, s3)
               | AddrR (x, a, r) when r != rIP ->
-                  AddrRRS (x, a, r, reg_of v2, s)
+                  AddrRRS (x, a, r, reg_of v2, s3)
               | _ ->
                   let v1' = gen_reg64 "leaq" [anyreg; v1] in
-                  AddrRRS ("", 0, reg_of v1', reg_of v2, s))
+                  AddrRRS ("", 0, reg_of v1', reg_of v2, s3))
         | <OFFSET, t1, t2> ->
             let v1 = eval_addr t1 in
             let v2 = eval_offset t2 in
@@ -543,7 +545,7 @@ module AMD64 = struct
       done;
       release_reg !statlink;
       if (n > 6) then
-        gen "addq" [reg64 rSP; Const (16*((n+1) / 2)-48)];
+        gen "addq" [reg64 rSP; Const (Int32.of_int (16*((n+1) / 2)-48))];
       in_call := false; statlink := R_none
 
     (* |tran_stmt| -- generate code to execute a statement *)
@@ -610,7 +612,7 @@ module AMD64 = struct
             let v2 = eval_rand64 t2 in
             gen "cmpq" [v1; v2];
             gen (branch_op w) [Label lab]
-        | <JUMPC (w, lab), t1, <CONST 0>> ->
+        | <JUMPC (w, lab), t1, <CONST z>> when z = Int32.zero ->
             let v1 = eval_reg t1 anyreg in
             release v1;
             emit "testl" [v1; v1];
@@ -625,7 +627,7 @@ module AMD64 = struct
             let n = List.length table in
             let lab1 = gensym () in
             let v1 = eval_reg t1 anyreg in
-            emit "cmpl" [v1; Const n];
+            emit "cmpl" [v1; Const (Int32.of_int n)];
             emit "jae" [Label deflab];
             if !pic_mode then begin
               let v2a = gen_reg64 "leaq" [anyreg; AddrR (lab1, 0, rIP)] in
@@ -649,7 +651,7 @@ module AMD64 = struct
             ignore (eval_reg t1 (reg r))
         | <ARG i, t1> ->
             if not !in_call && i mod 2 = 0 then
-              gen "pushq" [Const 0];
+              gen "pushq" [Const Int32.zero];
             in_call := true;
             let v1 = eval_reg t1 anyreg in
             gen "pushq" [v1]

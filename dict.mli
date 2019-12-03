@@ -22,6 +22,7 @@ val fId : ident -> Print.arg
 type location =
     Local of int		(* Local (offset) *)
   | Global of Optree.symbol	(* Global (label) *)
+  | Absolute of int32		(* Hardware register (address) *)
   | Register of int		(* Register *)
   | Nowhere			(* Compile-time only *)
 
@@ -37,7 +38,7 @@ val fLibId : libid -> Print.arg
 
 (* |def_kind| -- kinds of definition *)
 type def_kind = 
-    ConstDef of int 		(* Constant (value) *)
+    ConstDef of int32 		(* Constant (value) *)
   | StringDef 			(* String constant *)
   | TypeDef 			(* Type *)
   | VarDef			(* Variable *)

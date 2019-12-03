@@ -9,7 +9,7 @@ open Tree
 
 %token <Dict.ident>	IDENT
 %token <Optree.op>	MULOP ADDOP RELOP
-%token <int>		NUMBER 
+%token <int32>	        NUMBER 
 %token <char>		CHAR
 %token <Optree.symbol * int> STRING
 
@@ -64,7 +64,15 @@ var_decls :
   | var_decl var_decls			{ $1 :: $2 } ;
 
 var_decl :
-    ident_list COLON typexpr SEMI	{ VarDecl (VarDef, $1, $3) } ;
+    var_list COLON typexpr SEMI		{ VarDecl (VarDef, $1, $3) } ;
+
+var_list :
+    varname				{ [$1] }
+  | varname COMMA var_list		{ $1 :: $3 } ;
+
+varname :
+    IDENT				{ LocVar $1 }
+  | IDENT SUB expr BUS			{ AbsVar ($1, $3) } ;
 
 proc_decl :
     proc_heading SEMI block SEMI	{ ProcDecl ($1, $3) } ;
@@ -134,8 +142,8 @@ else_part :
   | ELSE stmts				{ $2 } ;
 
 ident_list :	
-    IDENT				{ [$1] }
-  | IDENT COMMA ident_list		{ $1 :: $3 } ;
+    IDENT				{ [LocVar $1] }
+  | IDENT COMMA ident_list		{ LocVar $1 :: $3 } ;
 
 expr_opt :	
     /* empty */				{ None }

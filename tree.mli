@@ -32,10 +32,12 @@ and block = Block of decl list * stmt * int ref * int ref
 
 and decl = 
     ConstDecl of ident * expr
-  | VarDecl of def_kind * ident list * typexpr
+  | VarDecl of def_kind * varname list * typexpr
   | TypeDecl of (ident * typexpr) list
   | ProcDecl of proc_heading * block
   | PParamDecl of proc_heading
+
+and varname = LocVar of ident | AbsVar of ident * expr
 
 and proc_heading = Heading of name * decl list * typexpr option 
 
@@ -58,10 +60,10 @@ and stmt_guts =
 and expr = 
   { e_guts: expr_guts; 
     mutable e_type: ptype; 
-    mutable e_value: int option }
+    mutable e_value: int32 option }
 
 and expr_guts =
-    IntConst of int
+    IntConst of int32
   | CharConst of char
   | Variable of name
   | Sub of expr * expr 

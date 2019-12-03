@@ -60,8 +60,8 @@ of ocamllex: named regular expressions, and variables that are bound to
 substrings of the token. *)
 
 let letter = ['A'-'Z''a'-'z']
-
 let digit = ['0'-'9']
+let hex = ['0'-'9''a'-'z']
 
 let q = '\''
 let qq = '"'
@@ -71,7 +71,8 @@ let notqq = [^'"']
 rule token = parse
   letter (letter | digit | '_')* as s
 				{ lookup s }
-| digit+ as s			{ NUMBER (int_of_string s) }
+| digit+ as s			{ NUMBER (Int32.of_string s) }
+| "0x" hex+ as s		{ NUMBER (Int32.of_string s) }
 | q (notq as c) q		{ CHAR c }
 | q q q q			{ CHAR '\'' }
 | qq ((notqq | qq qq)* as s) qq	{ get_string s }

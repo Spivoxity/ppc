@@ -60,12 +60,15 @@ module F(Tgt : Target.T) = struct
         0 -> CALL n | (1 | 4) -> CALLW n | 8 -> CALLQ n
       | _ -> failwith "callop"
 
+  let const n = <CONST (Int32.of_int n)>
+
   (* |schain| -- code to follow N links of static chain *)
   let rec schain n =
     if n = 0 then
       <LOCAL 0>
     else
-      <load_addr, <OFFSET, schain (n-1), <CONST Metrics.stat_link>>>
+      <load_addr,
+        <OFFSET, schain (n-1), const Metrics.stat_link>>
 
   (* |address| -- code to push address of an object *)
   let address d =
@@ -73,7 +76,9 @@ module F(Tgt : Target.T) = struct
         Global g ->
           <GLOBAL g>
       | Local off -> 
-          <OFFSET, schain (!level - d.d_level), <CONST off>>
+          <OFFSET, schain (!level - d.d_level), const off>
+      | Absolute addr ->
+          <CONST addr>
       | Register i ->
           <REGVAR i>
       | Nowhere -> 
@@ -87,7 +92,7 @@ module F(Tgt : Target.T) = struct
             if d.d_level = 0 then <NIL> else schain (!level - d.d_level))
       | PParamDef ->
           (<load_addr, address d>,
-            <load_addr, <OFFSET, address d, <CONST addr_size>>>)
+            <load_addr, <OFFSET, address d, const addr_size>>)
       | _ -> failwith "missing closure"
 
   let rec numargs i =
@@ -103,7 +108,7 @@ module F(Tgt : Target.T) = struct
 
   (* |gen_copy| -- generate code to copy a fixed-size chunk *)
   let gen_copy dst src n =
-    libcall "memcpy" [dst; src; <CONST n>] void_rep
+    libcall "memcpy" [dst; src; const n] void_rep
 
   (* |const_val| -- get value of constant or raise Not_found *)
   let const_val e =
@@ -132,13 +137,13 @@ module F(Tgt : Target.T) = struct
           end
       | Sub (a, i) ->
           let bound_check t =
-            if not !boundchk then t else <BOUND, t, <CONST (bound a.e_type)>> in
+            if not !boundchk then t else <BOUND, t, const (bound a.e_type)> in
           <OFFSET, 
             gen_addr a,
-            <BINOP Times, bound_check (gen_expr i), <CONST (size_of v.e_type)>>>
+            <BINOP Times, bound_check (gen_expr i), const (size_of v.e_type)>>
       | Select (r, x) ->
           let d = get_def x in
-          <OFFSET, gen_addr r, <CONST (offset_of d)>>
+          <OFFSET, gen_addr r, const (offset_of d)>
       | Deref p ->
           let null_check t =
             if not !boundchk then t else <NCHECK, t> in
@@ -164,14 +169,15 @@ module F(Tgt : Target.T) = struct
               | Binop (Div, e1, e2) ->
                   begin try
                     let k = Util.exact_log2 (const_val e2) in
-                    <BINOP Asr, gen_expr e1, <CONST k>>
+                    <BINOP Asr, gen_expr e1, const k>
                   with Not_found ->
                     libcall "int_div" [gen_expr e1; gen_expr e2] int_rep
                   end
               | Binop (Mod, e1, e2) ->
                   begin try
                     let k = Util.exact_log2 (const_val e2) in
-                    <BINOP BitAnd, gen_expr e1, <CONST (1 lsl k - 1)>>
+                    <BINOP BitAnd, gen_expr e1,
+                      <CONST (Int32.pred (Int32.shift_left Int32.one k))>>
                   with Not_found ->
                     libcall "int_mod" [gen_expr e1; gen_expr e2] int_rep
                   end
@@ -186,8 +192,8 @@ module F(Tgt : Target.T) = struct
                   let t = Alloc.new_temp 1 in
                   <AFTER,
                     <SEQ, gen_cond e lab1 lab2,
-                      <LABEL lab1>, <DEFTEMP t, <CONST 1>>, <JUMP lab3>,
-                      <LABEL lab2>, <DEFTEMP t, <CONST 0>>,
+                      <LABEL lab1>, <DEFTEMP t, const 1>, <JUMP lab3>,
+                      <LABEL lab2>, <DEFTEMP t, const 0>,
                       <LABEL lab3>>,
                     <TEMPW t>>
               | Binop (w, e1, e2) ->
@@ -237,13 +243,13 @@ module F(Tgt : Target.T) = struct
       | (OrdFun, [e]) -> gen_expr e
       | (PrintString, [e]) ->
           libcall "print_string"
-            [gen_addr e; <CONST (bound e.e_type)>] void_rep
+            [gen_addr e; const (bound e.e_type)] void_rep
       | (ReadChar, [e]) ->
           libcall "read_char" [gen_addr e] char_rep
       | (NewProc, [e]) ->
           let size = size_of (base_type e.e_type) in
           let store = choose e STOREW STOREW STOREQ in
-          <store, libcall "new" [<CONST size>] addr_rep, gen_addr e>
+          <store, libcall "new" [const size] addr_rep, gen_addr e>
       | (ArgcFun, []) ->
           libcall "argc" [] int_rep
       | (ArgvProc, [e1; e2]) ->
@@ -262,7 +268,7 @@ module F(Tgt : Target.T) = struct
   and gen_cond test tlab flab =
     match test.e_value with
         Some v ->
-          if v <> 0 then <JUMP tlab> else <JUMP flab>
+          if v <> Int32.zero then <JUMP tlab> else <JUMP flab>
       | None ->
           begin match test.e_guts with
               Monop (Not, e) ->
@@ -295,7 +301,7 @@ module F(Tgt : Target.T) = struct
                   <JUMP flab>>
             | _ ->
                 <SEQ,
-                  <JUMPC (Neq, tlab), gen_expr test, <CONST 0>>,
+                  <JUMPC (Neq, tlab), gen_expr test, const 0>,
                   <JUMP flab>>
           end
 
@@ -310,7 +316,8 @@ module F(Tgt : Target.T) = struct
         match qs with
             [] -> []
           | (v, l) :: rs -> 
-              if u = v then l :: tab (v+1) rs else deflab :: tab (u+1) qs in
+              if u = v then l :: tab (Int32.succ v) rs
+              else deflab :: tab (Int32.succ u) qs in
       <JCASE (tab lobound table, deflab),
         <BINOP Minus, sel, <CONST lobound>>>
     end
@@ -385,7 +392,7 @@ module F(Tgt : Target.T) = struct
               <LABEL l1>,
               <JUMPC (Gt, l2), gen_expr var, <LOADW, address tmp>>,
               gen_stmt body,
-              <STOREW, <BINOP Plus, gen_expr var, <CONST 1>>, gen_addr var>,
+              <STOREW, <BINOP Plus, gen_expr var, const 1>, gen_addr var>,
               <JUMP l1>,
               <LABEL l2>>
 
@@ -441,10 +448,13 @@ module F(Tgt : Target.T) = struct
 
   (* |gen_global| -- generate declaration for global variable *)
   let gen_global d =
-    match d.d_kind with
-        VarDef ->
-          Emitter.put_global (get_label d) (size_of d.d_type)
-      | _ -> ()
+    if d.d_kind = VarDef then begin
+      match d.d_addr with
+          Global lab ->
+            Emitter.put_global lab (size_of d.d_type)
+        | Absolute _ -> ()
+        | _ -> failwith "gen_global"
+    end
 
   (* |translate| -- generate code for the whole program *)
   let translate (Prog (block, glodefs)) =

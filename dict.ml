@@ -32,6 +32,7 @@ let fId x = fStr (spelling x)
 type location =
     Local of int		(* Local (offset) *)
   | Global of symbol		(* Global (label) *)
+  | Absolute of int32		(* Hardware register (address) *)
   | Register of int		(* Register *)
   | Nowhere			(* Compile-time only *)
 
@@ -39,6 +40,7 @@ let fLoc =
   function
       Local n -> fMeta "local $" [fNum n]
     | Global g -> fMeta "global $" [fStr g]
+    | Absolute a -> fMeta "absolute $" [fNum32 a]
     | Register i -> fMeta "register $" [fNum i]
     | Nowhere -> fStr "*nowhere*"
 
@@ -74,7 +76,7 @@ an element can be added in constant time.
 
 (* |def_kind| -- kinds of definition *)
 type def_kind = 
-    ConstDef of int 		(* Constant (value) *)
+    ConstDef of int32 		(* Constant (value) *)
   | StringDef 			(* String *)
   | TypeDef 			(* Type *)
   | VarDef			(* Variable *)

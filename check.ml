@@ -162,7 +162,9 @@ and expr_type e env =
             | _ -> sem_error "dereferencing a non-pointer" []
         end
     | IntConst n -> e.e_value <- Some n; Types.integer
-    | CharConst c -> e.e_value <- Some (int_of_char c); Types.character
+    | CharConst c ->
+        e.e_value <- Some (Int32.of_int (int_of_char c));
+        Types.character
     | String (lab, n) -> row (n+1) Types.character
     | Nil -> Types.addrtype
     | FuncCall (p, args) -> 
@@ -438,7 +440,7 @@ let do_alloc alloc ds =
   let h d =
     match d.d_kind with
         VarDef | CParamDef | VParamDef | FieldDef | PParamDef ->
-          alloc d
+          if d.d_addr = Nowhere then alloc d
       | _ -> () in
   List.iter h ds
 
@@ -454,7 +456,7 @@ let rec check_typexpr te env =
 	and t2 = check_typexpr value env in
 	if not (same_type t1 Types.integer) then
 	  sem_error "upper bound must be an integer" [];
-	row v1 t2
+	row (Int32.to_int v1) t2
     | Record fields ->
 	let env' = check_decls fields (new_block env) in
         let defs = top_block env' in
@@ -495,10 +497,17 @@ and check_decl d env =
 	end
     | VarDecl (kind, xs, te) ->
         let t = check_typexpr te env in
-        let def x env = 
-	  let d = make_def x kind t in
-	  add_def d env in
-	Util.accum def xs env
+        let def x env1 =
+          match x with
+              LocVar y -> add_def (make_def y kind t) env1
+            | AbsVar (y, addr) ->
+                let (t1, a) = check_const addr env in
+                if not (same_type t1 Types.integer) then
+                  sem_error "address must be an integer" [];
+                let d1 = make_def y kind t in
+                d1.d_addr <- Absolute a;
+                add_def d1 env1 in
+        Util.accum def xs env
     | TypeDecl tds ->
 	let tds' = 
 	  List.map (function (x, te) -> (x, te, ref Types.voidtype)) tds in
@@ -591,8 +600,8 @@ let init_env =
     [ ("integer", TypeDef, integer);
       ("char", TypeDef, character);
       ("boolean", TypeDef, boolean);
-      ("true", ConstDef 1, boolean);
-      ("false", ConstDef 0, boolean);
+      ("true", ConstDef Int32.one, boolean);
+      ("false", ConstDef Int32.zero, boolean);
       ("chr", libproc ChrFun 1 [integer], character);
       ("ord", libproc OrdFun 1 [], integer);
       ("print_num", libproc PrintNum 1 [integer], voidtype);

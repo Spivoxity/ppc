@@ -17,10 +17,12 @@ and block = Block of decl list * stmt * int ref * int ref
 
 and decl = 
     ConstDecl of ident * expr
-  | VarDecl of def_kind * ident list * typexpr
+  | VarDecl of def_kind * varname list * typexpr
   | TypeDecl of (ident * typexpr) list
   | ProcDecl of proc_heading * block
   | PParamDecl of proc_heading
+
+and varname = LocVar of ident | AbsVar of ident * expr
 
 and proc_heading = Heading of name * decl list * typexpr option 
 
@@ -43,10 +45,10 @@ and stmt_guts =
 and expr = 
   { e_guts: expr_guts; 
     mutable e_type: ptype; 
-    mutable e_value: int option }
+    mutable e_value: int32 option }
 
 and expr_guts =
-    IntConst of int
+    IntConst of int32
   | CharConst of char
   | Variable of name
   | Sub of expr * expr 
@@ -111,7 +113,9 @@ and fDecl =
       ConstDecl (x, e) -> 
 	fMeta "(CONST $ $)" [fId x; fExpr e]
     | VarDecl (kind, xs, te) -> 
-	fMeta "($ $ $)" [fKind kind; fList(fId) xs; fType te]
+        let f2 = function LocVar x -> fId x
+                  | AbsVar (x, e) -> fMeta "($ $)" [fId x; fExpr e] in
+	fMeta "($ $ $)" [fKind kind; fList(f2) xs; fType te]
     | TypeDecl tds ->
 	let f (x, te) = fMeta "($ $)" [fId x; fType te] in
 	fMeta "(TYPE$)" [fTail(f) tds]
@@ -154,7 +158,7 @@ and fStmt s =
 
 and fExpr e =
   match e.e_guts with
-      IntConst n -> fMeta "(INT $)" [fNum n]
+      IntConst n -> fMeta "(INT $)" [fNum32 n]
     | CharConst c -> fMeta "(CHAR $)" [fChr c]
     | Variable x -> fName x
     | Sub (e1, e2) -> fMeta "(SUB $ $)" [fExpr e1; fExpr e2]

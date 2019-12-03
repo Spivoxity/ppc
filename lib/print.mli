@@ -5,6 +5,7 @@ type arg
 
 (* Basic formats *)
 val fNum : int -> arg		(* Decimal number *)
+val fNum32 : int32 -> arg       (* Decimal number, 32 bits *)
 val fFix : int * int -> arg	(* Fixed-width number (val, width) *)
 val fFlo : float -> arg		(* Floating-point number *)
 val fStr : string -> arg	(* String *)

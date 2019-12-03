@@ -27,7 +27,7 @@ val fLab : codelab -> Print.arg
 
 (* |inst| -- type of intermediate instructions *)
 type inst =
-    CONST of int 		(* Constant (value) *)
+    CONST of int32 		(* Constant (value) *)
   | GLOBAL of symbol    	(* Global address (symbol) *)
   | LIBFUN of symbol		(* Library function *)
   | LOCAL of int		(* Local address (offset) *)
@@ -69,10 +69,10 @@ type inst =
 val fInst : inst -> Print.arg
 
 (* |do_monop| -- evaluate unary operation *)
-val do_monop : op -> int -> int
+val do_monop : op -> int32 -> int32
 
 (* |do_binop| -- evaluate binary operation *)
-val do_binop : op -> int -> int -> int
+val do_binop : op -> int32 -> int32 -> int32
 
 (* |negate| -- find opposite for comparison op *)
 val negate : op -> op

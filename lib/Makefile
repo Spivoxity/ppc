@@ -19,5 +19,6 @@ force:
 ###
 
 print.cmo: print.cmi
-source.cmo: source.cmi
+source.cmi: print.cmi
+source.cmo: source.cmi print.cmi
 growvect.cmo: growvect.cmi

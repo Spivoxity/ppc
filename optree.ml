@@ -30,7 +30,7 @@ type op = Plus | Minus | Times | Div | Mod | Eq
 
 (* |inst| -- type of intermediate instructions *)
 type inst =
-    CONST of int 		(* Constant (value) *)
+    CONST of int32 		(* Constant (value) *)
   | GLOBAL of symbol 		(* Constant (symbol, offset) *)
   | LIBFUN of symbol		(* Library function *)
   | LOCAL of int		(* Local address (offset) *)
@@ -86,7 +86,7 @@ let fType1 =
 
 let fInst =
   function
-      CONST x ->	fMeta "CONST $" [fNum x]
+      CONST x ->	fMeta "CONST $" [fNum32 x]
     | GLOBAL a -> 	fMeta "GLOBAL $" [fStr a]
     | LIBFUN x ->	fMeta "LIBFUN $" [fStr x]
     | LOCAL n ->	fMeta "LOCAL $" [fNum n]
@@ -122,37 +122,37 @@ let fInst =
     | TEMPW n ->	fMeta "TEMPW $" [fNum n]
     | TEMPQ n ->	fMeta "TEMPQ $" [fNum n]
 
-let int_of_bool b = if b then 1 else 0
+let int32_of_bool b = if b then Int32.one else Int32.zero
 
 (* |do_monop| -- evaluate unary operators *)
 let do_monop w x =
   match w with
-      Uminus -> - x
-    | Not -> if x <> 0 then 0 else 1
-    | BitNot -> lnot x
+      Uminus -> Int32.neg x
+    | Not -> if x <> Int32.zero then Int32.zero else Int32.one
+    | BitNot -> Int32.lognot x
     | _ -> failwith "do_monop"
 
 (* |do_binop| -- evaluate binary operators *)
 let do_binop w x y =
   match w with
-      Plus -> x + y
-    | Minus -> x - y
-    | Times -> x * y
-    | Div -> x / y
-    | Mod -> x mod y
-    | Eq -> int_of_bool (x = y)
-    | Lt -> int_of_bool (x < y)
-    | Gt -> int_of_bool (x > y)
-    | Leq -> int_of_bool (x <= y)
-    | Geq -> int_of_bool (x >= y)
-    | Neq -> int_of_bool (x <> y)
-    | And -> if x <> 0 then y else 0
-    | Or -> if x <> 0 then 1 else y
-    | BitAnd -> x land y
-    | BitOr -> x lor y
-    | Lsl -> x lsl y
-    | Lsr -> x lsr y
-    | Asr -> x asr y
+      Plus -> Int32.add x y
+    | Minus -> Int32.sub x y
+    | Times -> Int32.mul x y
+    | Div -> Int32.div x y
+    | Mod -> Int32.rem x y
+    | Eq -> int32_of_bool (x = y)
+    | Lt -> int32_of_bool (x < y)
+    | Gt -> int32_of_bool (x > y)
+    | Leq -> int32_of_bool (x <= y)
+    | Geq -> int32_of_bool (x >= y)
+    | Neq -> int32_of_bool (x <> y)
+    | And -> if x <> Int32.zero then y else Int32.zero
+    | Or -> if x <> Int32.zero then Int32.one else y
+    | BitAnd -> Int32.logand x y
+    | BitOr -> Int32.logor x y
+    | Lsl -> Int32.shift_left x (Int32.to_int y)
+    | Lsr -> Int32.shift_right_logical x (Int32.to_int y)
+    | Asr -> Int32.shift_right x (Int32.to_int y)
     | _ -> failwith "do_binop"
 
 (* |negate| -- negation of a comparison *)
