@@ -1,7 +1,7 @@
 (* ppcu/coder.ml *)
 (* Copyright (c) 2017--18 J. M. Spivey *)
 
-(* A template the drives the code generation process.  The machine-specific
+(* A template that drives the code generation process.  The machine-specific
    parts are an Emitter that formats the output, and a Selector that
    chooses instructions.  Each procedure body is buffered, so the Emitter
    can tailor that prelude and postlude in light of the code generated. *)
