@@ -187,13 +187,22 @@ module F(Tgt : Target.T) = struct
               | Binop (Neq, e1, e2) ->
                   let neq = choose e1 Neq Neq NeqA in
                   <BINOP neq, gen_expr e1, gen_expr e2>
-              | Binop ((And|Or), _, _) ->
+              | Binop (And, e1, e2) ->
                   let lab1 = label () and lab2 = label () and lab3 = label () in
                   let t = Alloc.new_temp 1 in
                   <AFTER,
-                    <SEQ, gen_cond e lab1 lab2,
-                      <LABEL lab1>, <DEFTEMP t, const 1>, <JUMP lab3>,
+                    <SEQ, gen_cond e1 lab1 lab2,
+                      <LABEL lab1>, <DEFTEMP t, gen_expr e2>, <JUMP lab3>,
                       <LABEL lab2>, <DEFTEMP t, const 0>,
+                      <LABEL lab3>>,
+                    <TEMPW t>>
+              | Binop (Or, e1, e2) ->
+                  let lab1 = label () and lab2 = label () and lab3 = label () in
+                  let t = Alloc.new_temp 1 in
+                  <AFTER,
+                    <SEQ, gen_cond e1 lab1 lab2,
+                      <LABEL lab1>, <DEFTEMP t, const 1>, <JUMP lab3>,
+                      <LABEL lab2>, <DEFTEMP t, gen_expr e2>,
                       <LABEL lab3>>,
                     <TEMPW t>>
               | Binop (w, e1, e2) ->
