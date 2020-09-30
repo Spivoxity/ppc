@@ -5,6 +5,10 @@ open Target
 open Print
 open Optree
 
+let zero = Int32.zero
+let one = Int32.one
+let int32 n = Int32.of_int n
+
 module RISC86 = struct
   module Metrics = struct
     let int_rep = { r_size = 4; r_align = 4 }
@@ -60,7 +64,7 @@ module RISC86 = struct
   module Emitter = struct
     (* |operand| -- type of operands for assembly instructions *)
     type operand =                  (* VALUE              RISC86 SYNTAX    *)
-        Const of int                (* val                val              *)
+        Const of int32              (* val                val              *)
       | Register of reg             (* [reg]              reg              *)
       | Offset of int * reg         (* val+[reg]<<s       val(reg)         *)
       | Index of symbol * int * reg * int 
@@ -101,7 +105,7 @@ module RISC86 = struct
     (* |fRand| -- format operand for printing *)
     let fRand =
       function
-          Const v -> fNum v
+          Const v -> fNum32 v
         | Register reg -> fReg reg
         | Offset (n, reg) -> 
             if n = 0 then fMeta "($)" [fReg reg]
@@ -206,11 +210,11 @@ module RISC86 = struct
           <CONST k> ->
             gen_reg "mov" [r; Const k]
         | <NIL> ->
-            gen_reg "mov" [r; Const 0]
+            gen_reg "mov" [r; Const zero]
         | <LOCAL 0> ->
             gen_move "mov" [r; Register r_bp]
         | <LOCAL n> ->
-              gen_reg "add" [r; Register r_bp; Const n]
+              gen_reg "add" [r; Register r_bp; Const (int32 n)]
         | <GLOBAL x> ->
             gen_reg "mov" [r; Global (x, 0)]
         | <TEMPW n> ->
@@ -229,7 +233,7 @@ module RISC86 = struct
             gen_reg "neg" [r; v1]
         | <MONOP Not, t1> ->
             let v1 = eval_reg t1 anyreg in
-            gen_reg "xor" [r; v1; Const 1]
+            gen_reg "xor" [r; v1; Const one]
         | <MONOP BitNot, t1> ->
             let v1 = eval_reg t1 anyreg in
             gen_reg "not" [r; v1]
@@ -270,7 +274,7 @@ module RISC86 = struct
     and eval_rand =
       function
           <CONST k> -> Const k
-        | <NIL> -> Const 0
+        | <NIL> -> Const zero
         | <GLOBAL x> -> Global (x, 0)
         | t -> eval_reg t anyreg
 
@@ -279,20 +283,20 @@ module RISC86 = struct
       function
           <LOCAL n> -> Offset (n, r_bp)
         | <GLOBAL x> | <LIBFUN x> -> Global (x, 0)
-        | <OFFSET, <GLOBAL x>, <CONST n>> -> Global (x, n)
-        | <OFFSET, <GLOBAL x>, <BINOP Lsl, t2, <CONST s>>> when s <= 3 ->
+        | <OFFSET, <GLOBAL x>, <CONST n>> -> Global (x, Int32.to_int n)
+        | <OFFSET, <GLOBAL x>, <BINOP Lsl, t2, <CONST s>>> when s <= int32 3 ->
             let v2 = eval_reg t2 anyreg in
-            Index (x, 0, reg_of v2, s)
+            Index (x, 0, reg_of v2, Int32.to_int s)
         | <OFFSET, <GLOBAL x>, t2> ->
             let v2 = eval_reg t2 anyreg in
             Index (x, 0, reg_of v2, 0)
         | <OFFSET, t1, <CONST n>> ->
             let v1 = eval_reg t1 anyreg in
-            Offset (n, reg_of v1)
-        | <OFFSET, t1, <BINOP Lsl, t2, <CONST s>>> when s <= 3 ->
+            Offset (Int32.to_int n, reg_of v1)
+        | <OFFSET, t1, <BINOP Lsl, t2, <CONST s>>> when s <= int32 3 ->
             let v1 = eval_reg t1 anyreg in
             let v2 = eval_reg t2 anyreg in
-            Index2 (reg_of v1, reg_of v2, s)
+            Index2 (reg_of v1, reg_of v2, Int32.to_int s)
         | <OFFSET, t1, t2> ->
             let v1 = eval_reg t1 anyreg in
             let v2 = eval_reg t2 anyreg in
@@ -315,7 +319,7 @@ module RISC86 = struct
       release_reg !statlink;
       gen "call" [v1];
       if (n > 0) then
-        gen "add" [Register r_sp; Register r_sp; Const (4*n)];
+        gen "add" [Register r_sp; Register r_sp; Const (int32 (4*n))];
       statlink := R_none
 
     (* |tran_stmt| -- generate code to execute a statement *)
@@ -361,7 +365,7 @@ module RISC86 = struct
             let n = List.length table in
             let lab1 = gensym () in
             let v1 = eval_reg t1 anyreg in
-            emit "bae" [v1; Const n; Label deflab];
+            emit "bae" [v1; Const (int32 n); Label deflab];
             let v2 = gen_reg "ldw" [anyreg; Index (lab1, 0, reg_of v1, 2)] in
             gen "jmp" [Offset (0, reg_of v2)];
             put_jumptab lab1 table

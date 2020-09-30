@@ -41,6 +41,7 @@ test: force
 	@echo "  'make test2a' to test with qemu-arm"
 	@echo "  'make test2t' to test with qemu-arm (thumb mode)"
 	@echo "  'make test2m' to test with qemu-mips"
+	@echo "  'make test2r' to test risc86 on amd64"
 
 EXCLUDE = nasty
 ALLSRC := $(shell ls test/*.p)
@@ -77,6 +78,9 @@ pas0.o : pas0.c
 test2a : $(TESTSRC:%=test2a-%)
 test2t : $(TESTSRC:%=test2t-%)
 test2m : $(TESTSRC:%=test2m-%)
+
+R86_EXCLUDE = allregs
+test2r : $(patsubst %,test2r-%,$(filter-out $(R86_EXCLUDE),$(TESTSRC)))
 
 GCC-ARM = arm-linux-gnueabihf-gcc -marm -march=armv6
 
@@ -115,6 +119,18 @@ test2m-% : ppc-mips pas0-mips.o force
 
 pas0-mips.o: pas0.c
 	mipsel-linux-gnu-gcc -fno-pic -c $< -o $@
+
+test2r-% : ppc-risc86 pas0-risc86.o force
+	@echo "*** Test $*.p"
+	./ppc-risc86 $(OPT) test/$*.p >b.r86
+	tools/risc86 <b.r86 >b.s
+	gcc -m32 pas0-risc86.o b.s -o b.out
+	./b.out >b.test
+	sed -n $(SCRIPT2) test/$*.p | diff - b.test
+	@echo "*** Passed"; echo
+
+pas0-risc86.o: pas0.c
+	gcc -m32 -c $< -o $@
 
 promote: $(TESTSRC:%=promote-%)
 

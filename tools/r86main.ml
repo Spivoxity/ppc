@@ -2,17 +2,17 @@
 
 (* Risc86 is an invented RISC machine that shares the registers of the
 x86 but has a load/store instruction set with 3-address arithmetic
-arithmetic instructions and no restrictions on which registers can be
-used in each instruction.  It's implemented by translation into real
-x86 code, with the restrictions of the x86 removed by expanding
-difficult instructions into multiple x86 instructions, and inserting a
-move instruction inserted where an operation's result is in a
-different register from its inputs.  The cost of this could, in
-extreme cases, be high.  But provided the register allocator in the
-compiler allocates the result of an operation when it can to the same
-register as an input, and provided the other restriction affect only 
-uncommon instructions -- as tends to be true -- the results are generally
-good enough to be usable. *)
+instructions and no restrictions on which registers can be used in
+each instruction.  It's implemented by translation into real x86 code,
+with the restrictions of the x86 removed by expanding difficult
+instructions into multiple x86 instructions, and inserting a move
+instruction where an operation's result is in a different register
+from its inputs.  The cost of this could, in extreme cases, be high.
+But provided the register allocator in the compiler allocates the
+result of an operation when it can to the same register as an input,
+and provided the other restriction affect only uncommon instructions
+-- as tends to be true -- the results are generally good enough to be
+usable. *)
 
 open Print
 
