@@ -20,8 +20,7 @@ val fId : ident -> Print.arg
 
 (* |location| -- runtime locations *)
 type location =
-    Global of Optree.symbol	(* Global (label) *)
-  | Local of Optree.reladdr	(* Local (symbolic offset) *)
+    Symbol of Optree.symbol	(* Global or local (label) *)
   | Absolute of int32		(* Hardware register (address) *)
   | Register of int		(* Register *)
   | Nowhere			(* Compile-time only *)
@@ -87,7 +86,7 @@ and libproc =
 
 val notype: ptype
 
-val offset_of : def -> Optree.reladdr
+val symbol_of : def -> Optree.symbol
 
 type environment
 

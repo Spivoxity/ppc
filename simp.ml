@@ -37,7 +37,7 @@ let rec simp t =
 
     | <OFFSET, <LOCAL (x, a)>, <CONST b>> ->
 	<LOCAL (x, a + (Int32.to_int b))>
-    | <OFFSET, <LOCAL (x, a)>, <SYMBOL (y, b)>> when is_zero x ->
+    | <OFFSET, <LOCAL (x, a)>, <SYMBOL (y, b)>> when is_none x ->
         <LOCAL (y, a+b)>
     | <OFFSET, <OFFSET, t1, <CONST a>>, <CONST b>> ->
         simp <OFFSET, t1, <CONST (Int32.add a b)>>

@@ -30,8 +30,7 @@ let fId x = fStr (spelling x)
 
 (* |location| -- runtime locations *)
 type location =
-    Global of Optree.symbol    	(* Global (label) *)
-  | Local of Optree.reladdr	(* Local (symbolic offset) *)
+    Symbol of Optree.symbol	(* Global or local (label) *)
   | Absolute of int32		(* Hardware register (address) *)
   | Register of int		(* Register *)
   | Nowhere			(* Compile-time only *)
@@ -229,11 +228,11 @@ let is_string t =
           | _ -> false)
     | _ -> false
 
-let offset_of d =
+let symbol_of d =
   match d.d_addr with
-      Local x -> x
+      Symbol x -> x
     | _ -> failwith "symbol_of"
-
+    
 let notype = mk_type (BasicType NoType) { r_size = 0; r_align = 0 }
 
 module type Platform = sig

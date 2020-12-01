@@ -65,7 +65,7 @@ module F(Tgt : Target.T) = struct
   (* |schain| -- code to follow N links of static chain *)
   let rec schain n =
     if n = 0 then
-      <LOCAL (norel, 0)>
+      <LOCAL (nosym, 0)>
     else
       <load_addr,
         <OFFSET, schain (n-1), const Metrics.stat_link>>
@@ -73,10 +73,11 @@ module F(Tgt : Target.T) = struct
   (* |address| -- code to push address of an object *)
   let address d =
     match d.d_addr with
-        Global x -> 
-          <GLOBAL x>
-      | Local x ->
-          <OFFSET, schain (!level - d.d_level), <SYMBOL (x, 0)>>
+        Symbol x -> 
+          if d.d_level = 0 then
+            <GLOBAL x>
+          else
+            <OFFSET, schain (!level - d.d_level), <SYMBOL (x, 0)>>
       | Absolute addr ->
           <CONST addr>
       | Register i ->
@@ -88,7 +89,7 @@ module F(Tgt : Target.T) = struct
   let gen_closure d =
     match d.d_kind with
         ProcDef ->
-          (address d,
+          (<GLOBAL (symbol_of d)>,
             if d.d_level = 0 then <NIL> else schain (!level - d.d_level))
       | PParamDef ->
           (<load_addr, address d>,
@@ -131,7 +132,7 @@ module F(Tgt : Target.T) = struct
                   else
                     <load_addr, address d>
               | StringDef ->
-                  address d
+                  <GLOBAL (symbol_of d)>
               | _ -> 
                   failwith "load_addr"
           end
@@ -144,7 +145,7 @@ module F(Tgt : Target.T) = struct
               bound_check (gen_expr i),
               const (size_of v.e_type)>>
       | Select (r, x) ->
-          let y = offset_of (get_def x) in
+          let y = symbol_of (get_def x) in
           <OFFSET, gen_addr r, <SYMBOL (y, 0)>>
       | Deref p ->
           let null_check t =
@@ -432,7 +433,7 @@ module F(Tgt : Target.T) = struct
 
   let fix_param adj d =
     match d.d_addr with
-        Local a ->
+        Symbol a ->
           a.a_val <- a.a_val - adj
       | _ -> failwith "fix_param"
 
@@ -470,10 +471,6 @@ module F(Tgt : Target.T) = struct
     Code.output ();
     Emitter.postlude()
 
-  (* |get_label| -- extract label for global definition *)
-  let get_label d =
-    match d.d_addr with Global lab -> lab | _ -> failwith "get_label"
-
   let get_decls (Block (decls, _, _, _)) = decls
 
   (* |gen_proc| -- translate a procedure, ignore other declarations *)
@@ -484,7 +481,7 @@ module F(Tgt : Target.T) = struct
           let p = get_proc d.d_type in
           let line = Source.get_line x.x_line in
           printf "$$\n" [fStr Emitter.comment; fStr line];
-          do_proc (get_label d) d.d_level p.p_pcount p.p_fparams block;
+          do_proc (symbol_of d) d.d_level p.p_pcount p.p_fparams block;
           gen_procs (get_decls block)
       | _ -> ()
 
@@ -495,7 +492,7 @@ module F(Tgt : Target.T) = struct
   let gen_global d =
     if d.d_kind = VarDef then begin
       match d.d_addr with
-          Global lab ->
+          Symbol lab ->
             Emitter.put_global lab (size_of d.d_type)
         | Absolute _ -> ()
         | _ -> failwith "gen_global"

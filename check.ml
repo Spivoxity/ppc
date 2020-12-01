@@ -399,7 +399,7 @@ let align alignment offset =
   if margin <> 0 then offset := !offset - margin + alignment
 
 let local x a =
-  Local (Optree.relative (spelling x) a)
+  Symbol (Optree.relative (spelling x) a)
 
 (* upward_alloc -- allocate objects upward in memory *)
 let upward_alloc size d =
@@ -436,7 +436,7 @@ let param_alloc pcount d =
 
 (* |global_alloc| -- allocate label for global variable *)
 let global_alloc d =
-  d.d_addr <- Global (symbol (sprintf "_$" [fId d.d_tag]))
+  d.d_addr <- Symbol (symbol (sprintf "_$" [fId d.d_tag]))
 
 (* |do_alloc| -- call allocation function for definitions that need it *)
 let do_alloc alloc ds =
@@ -492,7 +492,7 @@ and check_decl d env =
 	      String (lab, n) ->
 		let t = row (n+1) Types.character in
 		let d = make_def x StringDef t in
-		d.d_addr <- Global lab;
+		d.d_addr <- Symbol lab;
 		add_def d env
 	    | _ ->
 		let (t, v) = check_const e env in
@@ -524,7 +524,7 @@ and check_decl d env =
     | ProcDecl (Heading (x, _, _) as heading, body) ->
 	let t = check_heading env heading in
 	let d = make_def x.x_name ProcDef t in
-	d.d_addr <- Global (symbol (sprintf "_$" [fId d.d_tag]));
+	d.d_addr <- Symbol (symbol (sprintf "_$" [fId d.d_tag]));
 	x.x_def <- Some d; add_def d env
     | PParamDecl (Heading (x, _, _) as heading) ->
         let t = check_heading env heading in

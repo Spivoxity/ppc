@@ -95,15 +95,15 @@ module ARM = struct
   module Emitter = struct
     (* |operand| -- type of operands for assembly instructions *)
     type operand =		  (* VALUE	  ASM SYNTAX       *)
-        Const of reladdr * int32  (* lab+val	  #lab+val         *)
+        Const of symbol * int32   (* lab+val	  #lab+val         *)
       | Register of reg		  (* [reg]	  reg	           *)
       | Shift of reg * int        (* [reg]<<n     reg, LSL #n      *)
-      | Index of reg * reladdr * int  (* [reg]+val    [reg, #val]  *)
+      | Index of reg * symbol * int  (* [reg]+val    [reg, #val]   *)
       | Index2 of reg * reg * int (* [r1]+[r2]<<n [r1, r2, LSL #n] *)
       | Global of symbol 	  (* lab	  lab	           *)
       | Label of codelab	  (* lab	  lab              *)
       | LitSym of symbol          (* lab          =lab             *)
-      | LitVal of reladdr * int32 (* lab+val	  =lab+val         *)
+      | LitVal of symbol * int32  (* lab+val	  =lab+val         *)
 
     let anyreg = Register R_any
     let anytemp = Register R_temp
@@ -120,8 +120,8 @@ module ARM = struct
         | LitSym x -> LitSym x
         | LitVal (x, n) -> LitVal (x, n)
 
-    let const n = Const (norel, n)
-    let literal n = LitVal (norel, n)
+    let const n = Const (nosym, n)
+    let literal n = LitVal (nosym, n)
 
     let reg_of =
       function
@@ -323,7 +323,7 @@ module ARM = struct
             gen_reg "ldr" [r; LitVal (x, int32 n)]
         | <NIL> ->
             gen_reg "mov" [r; const zero]
-        | <LOCAL (x, 0)> when is_zero x ->
+        | <LOCAL (x, 0)> when is_none x ->
             gen_move "mov" [r; Register r_fp]
         | <LOCAL (x, n)> when fits_add (int32 (x.a_val + n)) ->
             gen_reg "add" [r; Register r_fp; Const (x, int32 n)]
@@ -420,7 +420,7 @@ module ARM = struct
             Index2 (r_fp, reg_of r, 0)
         | <OFFSET, t1, <CONST n>> when fits_offset n ->
             let v1 = eval_reg t1 anyreg in
-            Index (reg_of v1, norel, Int32.to_int n)
+            Index (reg_of v1, nosym, Int32.to_int n)
         | <OFFSET, t1, <SYMBOL (x, n)>>
                 when fits_offset (int32 (x.a_val + n)) ->
             let v1 = eval_reg t1 anyreg in
@@ -435,7 +435,7 @@ module ARM = struct
             Index2 (reg_of v1, reg_of v2, 0)
         | t ->
             let v1 = eval_reg t anyreg in
-            Index (reg_of v1, norel, 0)
+            Index (reg_of v1, nosym, 0)
 
     (* |eval_call| -- execute procedure call *)
     let eval_call =
@@ -539,7 +539,7 @@ module ARM = struct
             ignore (eval_reg t1 (Register r))
         | <ARG i, t1> when i >= 4 ->
             let v1 = eval_reg t1 anyreg in
-            gen "str" [v1; Index (r_sp, norel, 4*i-16)]
+            gen "str" [v1; Index (r_sp, nosym, 4*i-16)]
 
         | <STATLINK, t1> ->
             let r = reg 4 in

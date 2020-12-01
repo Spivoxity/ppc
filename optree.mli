@@ -9,9 +9,13 @@ type op = Plus | Minus | Times | Div | Mod | Eq
 val fOp : op -> Print.arg
 
 
-type symbol
+type symbol =
+  { a_id: int;
+    a_name: string;
+    mutable a_val: int }
 
 val symbol: string -> symbol
+val relative: string -> int -> symbol
 
 val fSym: symbol -> Print.arg
 
@@ -19,19 +23,8 @@ val gensym: unit -> symbol
 
 val nosym: symbol
 
+val is_none : symbol -> bool
 
-type reladdr =
-  { a_id: int;
-    a_name: string;
-    mutable a_val: int }
-
-val norel : reladdr
-
-val relative: string -> int -> reladdr
-
-val is_zero : reladdr -> bool
-
-val fRel: reladdr -> Print.arg
 
 
 (* |codelab| -- type of code labels *)
@@ -47,10 +40,10 @@ val fLab : codelab -> Print.arg
 (* |inst| -- type of intermediate instructions *)
 type inst =
     CONST of int32 		(* Constant (value) *)
-  | SYMBOL of reladdr * int     (* Symbolic constant *)
+  | SYMBOL of symbol * int      (* Symbolic constant *)
   | GLOBAL of symbol 		(* Global address (symbol) *)
   | LIBFUN of string		(* Library function *)
-  | LOCAL of reladdr * int	(* Local address (symbol, offset) *)
+  | LOCAL of symbol * int	(* Local address (symbol, offset) *)
   | REGVAR of int		(* Register (index) *)
   | NIL				(* Null pointer *)
   | LOADC			(* Load char *)

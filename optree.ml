@@ -6,33 +6,29 @@ open Print
 
 let nsyms = ref 0
 
-type symbol = string
-
-let symbol x = x
-
-let fSym x = fStr x
-
-let nosym = ""
-
-let gensym () =
-  incr nsyms; sprintf "g$" [fNum !nsyms]
-
-
-type reladdr =
+type symbol =
   { a_id: int;
     a_name: string;
     mutable a_val: int }
 
-let relative s n =
+let symbol x =
   incr nsyms;
-  { a_id = !nsyms; a_name = s; a_val = n }
+  { a_id = !nsyms; a_name = x; a_val = 0 }
 
-let norel =
-  { a_id = 0; a_name = "*nosym*"; a_val = 0 }
+let relative x n =
+  incr nsyms;
+  { a_id = !nsyms; a_name = x; a_val = n }
 
-let is_zero x = (x.a_id = 0)
+let fSym x = fStr x.a_name
 
-let fRel x = fMeta "[$]" [fStr x.a_name]
+let nosym =
+  { a_id = 0; a_name = ""; a_val = 0 }
+
+let gensym () =
+  incr nsyms;
+  { a_id = !nsyms; a_name = sprintf "g$" [fNum !nsyms]; a_val = 0 }
+
+let is_none x = (x.a_id = 0)
 
 
 type codelab = int
@@ -56,10 +52,10 @@ type op = Plus | Minus | Times | Div | Mod | Eq
 (* |inst| -- type of intermediate instructions *)
 type inst =
     CONST of int32 		(* Constant (value) *)
-  | SYMBOL of reladdr * int     (* Symbolic constant *)
+  | SYMBOL of symbol * int      (* Symbolic constant *)
   | GLOBAL of symbol 		(* Global address (symbol) *)
   | LIBFUN of string		(* Library function *)
-  | LOCAL of reladdr * int	(* Local address (symbol, offset) *)
+  | LOCAL of symbol * int	(* Local address (symbol, offset) *)
   | REGVAR of int		(* Register (index) *)
   | NIL				(* Null pointer *)
   | LOADC			(* Load char *)
@@ -111,15 +107,15 @@ let fType1 =
   function 0 -> fStr "" | 1 -> fStr "W" | s -> fMeta "*$*" [fNum s]
 
 let fOff (x, n) =
-  if is_zero x then fNum n
-  else if n = 0 then fRel x
-  else fMeta "$+$" [fRel x; fNum n]
+  if is_none x then fNum n
+  else if n = 0 then fSym x
+  else fMeta "$+$" [fSym x; fNum n]
 
 let fInst =
   function
       CONST x ->	fMeta "CONST $" [fNum32 x]
     | SYMBOL (x, n) ->  fMeta "SYMBOL $" [fOff (x, n)]
-    | GLOBAL a -> 	fMeta "GLOBAL $" [fStr a]
+    | GLOBAL a -> 	fMeta "GLOBAL $" [fSym a]
     | LIBFUN x ->	fMeta "LIBFUN $" [fStr x]
     | LOCAL (x, n) ->	fMeta "LOCAL $" [fOff (x, n)]
     | REGVAR i ->	fMeta "REGVAR $" [fNum i]
@@ -239,7 +235,7 @@ let flatten ts = List.concat (List.map flat ts)
 let rec fix_rel =
   function
       <SYMBOL (x, n)> -> <CONST (Int32.of_int (x.a_val + n))>
-    | <LOCAL (x, n)> -> <LOCAL (norel, x.a_val + n)>
+    | <LOCAL (x, n)> -> <LOCAL (nosym, x.a_val + n)>
     | <w, @ts> -> <w, @(List.map fix_rel ts)>
 
 let fix_relative ts = List.map fix_rel ts
