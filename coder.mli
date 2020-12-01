@@ -2,8 +2,8 @@
 (* Copyright (c) 2017--18 J. M. Spivey *)
 
 module F(Target : Target.T) : sig
-  val translate :
-    Optree.symbol -> int -> int -> int -> int -> Optree.optree list -> unit
+  val translate : Optree.optree list -> unit
+  val output : unit -> unit
 end
 
 val debug : int ref

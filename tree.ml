@@ -3,6 +3,7 @@
 
 open Dict
 open Print
+open Optree
 
 (* |name| -- type for applied occurrences, with mutable annotations *)
 type name = 
@@ -164,7 +165,7 @@ and fExpr e =
     | Sub (e1, e2) -> fMeta "(SUB $ $)" [fExpr e1; fExpr e2]
     | Select (e1, x) -> fMeta "(SELECT $ $)" [fExpr e1; fName x]
     | Deref e1 -> fMeta "(DEREF $)" [fExpr e1]
-    | String (s, _) -> fMeta "(STRING $)" [fStr s]
+    | String (s, _) -> fMeta "(STRING $)" [fSym s]
     | Nil -> fStr "(NIL)"
     | FuncCall (p, aps) ->
 	fMeta "(CALL $$)" [fName p; fTail(fExpr) aps]

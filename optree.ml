@@ -3,8 +3,37 @@
 
 open Print
 
-(* |symbol| -- global symbols *)
+
+let nsyms = ref 0
+
 type symbol = string
+
+let symbol x = x
+
+let fSym x = fStr x
+
+let nosym = ""
+
+let gensym () =
+  incr nsyms; sprintf "g$" [fNum !nsyms]
+
+
+type reladdr =
+  { a_id: int;
+    a_name: string;
+    mutable a_val: int }
+
+let relative s n =
+  incr nsyms;
+  { a_id = !nsyms; a_name = s; a_val = n }
+
+let norel =
+  { a_id = 0; a_name = "*nosym*"; a_val = 0 }
+
+let is_zero x = (x.a_id = 0)
+
+let fRel x = fMeta "[$]" [fStr x.a_name]
+
 
 type codelab = int
 
@@ -19,10 +48,6 @@ let label () = incr lab; !lab
 (* |fLab| -- format a code label for printf *)
 let fLab n = fMeta "L$" [fNum n]
 
-let nosym = "*nosym*"
-
-let gensym () = sprintf "g$" [fNum (label ())]
-
 (* |op| -- type of picoPascal operators *)
 type op = Plus | Minus | Times | Div | Mod | Eq 
   | Uminus | Lt | Gt | Leq | Geq | Neq | EqA | NeqA
@@ -31,9 +56,10 @@ type op = Plus | Minus | Times | Div | Mod | Eq
 (* |inst| -- type of intermediate instructions *)
 type inst =
     CONST of int32 		(* Constant (value) *)
-  | GLOBAL of symbol 		(* Constant (symbol, offset) *)
-  | LIBFUN of symbol		(* Library function *)
-  | LOCAL of int		(* Local address (offset) *)
+  | SYMBOL of reladdr * int     (* Symbolic constant *)
+  | GLOBAL of symbol 		(* Global address (symbol) *)
+  | LIBFUN of string		(* Library function *)
+  | LOCAL of reladdr * int	(* Local address (symbol, offset) *)
   | REGVAR of int		(* Register (index) *)
   | NIL				(* Null pointer *)
   | LOADC			(* Load char *)
@@ -84,12 +110,18 @@ let fOp w = fStr (op_name w)
 let fType1 =
   function 0 -> fStr "" | 1 -> fStr "W" | s -> fMeta "*$*" [fNum s]
 
+let fOff (x, n) =
+  if is_zero x then fNum n
+  else if n = 0 then fRel x
+  else fMeta "$+$" [fRel x; fNum n]
+
 let fInst =
   function
       CONST x ->	fMeta "CONST $" [fNum32 x]
+    | SYMBOL (x, n) ->  fMeta "SYMBOL $" [fOff (x, n)]
     | GLOBAL a -> 	fMeta "GLOBAL $" [fStr a]
     | LIBFUN x ->	fMeta "LIBFUN $" [fStr x]
-    | LOCAL n ->	fMeta "LOCAL $" [fNum n]
+    | LOCAL (x, n) ->	fMeta "LOCAL $" [fOff (x, n)]
     | REGVAR i ->	fMeta "REGVAR $" [fNum i]
     | NIL ->            fStr "NIL"
     | LOADC -> 	        fStr "LOADC"
@@ -203,6 +235,15 @@ let flat =
     | t -> [t]
 
 let flatten ts = List.concat (List.map flat ts)
+
+let rec fix_rel =
+  function
+      <SYMBOL (x, n)> -> <CONST (Int32.of_int (x.a_val + n))>
+    | <LOCAL (x, n)> -> <LOCAL (norel, x.a_val + n)>
+    | <w, @ts> -> <w, @(List.map fix_rel ts)>
+
+let fix_relative ts = List.map fix_rel ts
+
 
 let fSeq(f) xs = 
   let g prf = List.iter (fun x -> prf "$" [f x]) xs in fExt g

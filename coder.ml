@@ -58,12 +58,10 @@ module F(Tgt : Target.T) = struct
     let set_rewriter f =
       rewriter := f
 
-    (* |end_proc| -- output procedure fragment, perhaps after error *)
-    let end_proc () =
+    (* |flush| -- output code for procedure *)
+    let flush () =
       let code' = !rewriter code in
-      Emitter.prelude ();
       Queue.iter put_item code';
-      Emitter.postlude();
       Queue.clear code
 
     (* |emit| -- emit an assembly language instruction *)
@@ -200,12 +198,6 @@ module F(Tgt : Target.T) = struct
       function <op, @args> -> <op, @(List.map do_tree args)> in
     Optree.canon <SEQ, @(List.map do_root code)>
 
-  let rec max_params =
-    function
-      <w, @args> ->
-        let x = match w with CALL n | CALLW n | CALLQ n -> n | _ -> 0 in
-        max x (Util.maximum (List.map max_params args))
-
   let show label code =
     if !debug > 1 then begin
       printf "$$:\n" [fStr Emitter.comment; fStr label];
@@ -215,22 +207,23 @@ module F(Tgt : Target.T) = struct
     code
 
   (* |translate| -- translate a procedure body *)
-  let translate lab level nargs fsize nregv code =
-    Alloc.get_regvars nregv;
-    Alloc.set_outgoing (Util.maximum (List.map max_params code));
-
-    let code0 = show "Initial code" code in
-    let code1 = if !optlevel < 1 then code0 else
+  let translate code =
+    let code00 = show "Initial code" code in
+    let code05 =
+      if not Tgt.Metrics.fixed_frame then code00 else
+        Optree.fix_relative code00 in
+    let code10 =
+      if !optlevel < 1 then code05 else
         show "After simplification"
-          (Jumpopt.optimise (Simp.optimise code0)) in
-    let code2 = if !optlevel < 2 then 
-        show "After unnesting" (unnest code1) 
+          (Jumpopt.optimise (Simp.optimise code05)) in
+    let code20 =
+      if !optlevel < 2 then 
+        show "After unnesting" (unnest code10) 
       else
-        show "After sharing" (Share.traverse code1) in
+        show "After sharing" (Share.traverse code10) in
 
-    Emitter.start_proc lab level nargs fsize;
-    (try List.iter process (flatten code2) with exc -> 
-      (* Code generation failed, but let's see how far we got *)
-      IQueue.end_proc (); raise exc);
-    IQueue.end_proc ()
+    List.iter process (flatten code20)
+
+  let output () =
+    IQueue.flush ()
 end

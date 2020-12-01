@@ -22,22 +22,23 @@ module type MetricsT = sig
   val param_rep : metrics	(* Procedure parameters *)
   val max_align : int
 
-  val param_base : int		(* +ve offset of first param from fp *)
+  val param_base : int		(* worst case offset of first param from fp *)
   val local_base : int -> int	(* -ve offset of bottom of frame head *)
   val stat_link : int		(* Offset of static link *)
   val nregvars : int		(* Number of register variables *)
   val share_globals : bool      (* Whether to use CSE on <GLOBAL x> *)
   val sharing : int		(* Whether to use CSE across jumps or calls *)
+  val fixed_frame : bool        (* Whether to fix relative addresses early *)
 
   val reg_names : string array
-
   val volatile : reg list
   val stable : reg list
 end
 
 (* Interface provided by the register allocator *)
 module type AllocT = sig
-  val reset : unit -> unit
+  (* |init| -- reset for new procedure with regvar count *)
+  val init : int -> unit
 
   (* |set_outgoing| -- note maximum outgoing parameters *)
   val set_outgoing : int -> unit
@@ -48,9 +49,6 @@ module type AllocT = sig
 
   (* |is_free| -- test if register is free *)
   val is_free : reg -> bool
-
-  (* |get_regvars| -- reserve register variables *)
-  val get_regvars : int -> unit
 
   val regvar : int -> reg
 
@@ -101,6 +99,8 @@ module type EmitterT = sig
   val map_regs : (reg -> reg) -> operand -> operand
 
   val use_reg : reg -> unit
+
+  val param_offset : unit -> int
 
   (* |preamble| -- emit first part of assembly language output *)
   val preamble : unit -> unit

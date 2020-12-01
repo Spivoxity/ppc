@@ -30,19 +30,11 @@ let fId x = fStr (spelling x)
 
 (* |location| -- runtime locations *)
 type location =
-    Local of int		(* Local (offset) *)
-  | Global of symbol		(* Global (label) *)
+    Global of Optree.symbol    	(* Global (label) *)
+  | Local of Optree.reladdr	(* Local (symbolic offset) *)
   | Absolute of int32		(* Hardware register (address) *)
   | Register of int		(* Register *)
   | Nowhere			(* Compile-time only *)
-
-let fLoc =
-  function
-      Local n -> fMeta "local $" [fNum n]
-    | Global g -> fMeta "global $" [fStr g]
-    | Absolute a -> fMeta "absolute $" [fNum32 a]
-    | Register i -> fMeta "register $" [fNum i]
-    | Nowhere -> fStr "*nowhere*"
 
 (* |libid| -- type of picoPascal library procedures *)
 type libid = ChrFun | OrdFun | PrintNum | PrintChar | PrintString 
@@ -239,8 +231,8 @@ let is_string t =
 
 let offset_of d =
   match d.d_addr with
-      Local o -> o
-    | _ -> failwith "offset_of"
+      Local x -> x
+    | _ -> failwith "symbol_of"
 
 let notype = mk_type (BasicType NoType) { r_size = 0; r_align = 0 }
 

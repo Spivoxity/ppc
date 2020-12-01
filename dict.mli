@@ -20,14 +20,11 @@ val fId : ident -> Print.arg
 
 (* |location| -- runtime locations *)
 type location =
-    Local of int		(* Local (offset) *)
-  | Global of Optree.symbol	(* Global (label) *)
+    Global of Optree.symbol	(* Global (label) *)
+  | Local of Optree.reladdr	(* Local (symbolic offset) *)
   | Absolute of int32		(* Hardware register (address) *)
   | Register of int		(* Register *)
   | Nowhere			(* Compile-time only *)
-
-(* |Loc| -- printf format for locations *)
-val fLoc: location -> Print.arg
 
 (* |libid| -- type of picoPascal library procedures *)
 type libid = ChrFun | OrdFun | PrintNum | PrintChar | PrintString 
@@ -90,7 +87,7 @@ and libproc =
 
 val notype: ptype
 
-val offset_of : def -> int
+val offset_of : def -> Optree.reladdr
 
 type environment
 

@@ -45,6 +45,7 @@ module RISC86 = struct
     let nregvars = 0
     let share_globals = false
     let sharing = 2
+    let fixed_frame = true
 
     let reg_names =
       [| "%0"; "%1"; "%2"; "%3"; "%4"; "%5"; "%bp"; "%sp" |]
@@ -93,10 +94,12 @@ module RISC86 = struct
 
     let use_reg _ = ()
 
+    let param_offset () = Metrics.param_base
+
     let fBase lab off =
-      if off = 0 then fStr lab 
-      else if off > 0 then fMeta "$+$" [fStr lab; fNum off]
-      else fMeta "$-$" [fStr lab; fNum (-off)]
+      if off = 0 then fSym lab 
+      else if off > 0 then fMeta "$+$" [fSym lab; fNum off]
+      else fMeta "$-$" [fSym lab; fNum (-off)]
 
     let fScaled reg s =
       if s = 0 then fReg reg else 
@@ -146,7 +149,7 @@ module RISC86 = struct
     (* |put_string| -- output a string constant *)
     let put_string lab s =
       segment RoData;
-      printf "$:" [fStr lab];
+      printf "$:" [fSym lab];
       let n = String.length s in
       for k = 0 to n-1 do
         let c = int_of_char s.[k] in
@@ -160,12 +163,12 @@ module RISC86 = struct
     let put_jumptab lab table =
       segment RoData;
       printf "\t.align 4\n" [];
-      printf "$:\n" [fStr lab];
+      printf "$:\n" [fSym lab];
       List.iter (fun l -> printf "\t.long .$\n" [fLab l]) table
 
     (* |put_global| -- output a global variable *)
     let put_global lab n =
-      printf "\t.comm $, $, 4\n" [fStr lab; fNum n]
+      printf "\t.comm $, $, 4\n" [fSym lab; fNum n]
 
     let proclab = ref nosym
     let level = ref 0
@@ -177,7 +180,7 @@ module RISC86 = struct
 
     let prelude () =
       segment Text;
-      printf "$:\n" [fStr !proclab];
+      printf "$:\n" [fSym !proclab];
       printf "\tprolog\n" [];
       if !level > 0 then
         printf "\tpush %0\n" []; (* Save static link *)
@@ -211,9 +214,9 @@ module RISC86 = struct
             gen_reg "mov" [r; Const k]
         | <NIL> ->
             gen_reg "mov" [r; Const zero]
-        | <LOCAL 0> ->
+        | <LOCAL (_, 0)> ->
             gen_move "mov" [r; Register r_bp]
-        | <LOCAL n> ->
+        | <LOCAL (_, n)> ->
               gen_reg "add" [r; Register r_bp; Const (int32 n)]
         | <GLOBAL x> ->
             gen_reg "mov" [r; Global (x, 0)]
@@ -281,8 +284,9 @@ module RISC86 = struct
     (* |eval_addr| -- evaluate expression to address value *)
     and eval_addr =
       function
-          <LOCAL n> -> Offset (n, r_bp)
-        | <GLOBAL x> | <LIBFUN x> -> Global (x, 0)
+          <LOCAL (_, n)> -> Offset (n, r_bp)
+        | <GLOBAL x> -> Global (x, 0)
+        | <LIBFUN x> -> Global (symbol x, 0)
         | <OFFSET, <GLOBAL x>, <CONST n>> -> Global (x, Int32.to_int n)
         | <OFFSET, <GLOBAL x>, <BINOP Lsl, t2, <CONST s>>> when s <= int32 3 ->
             let v2 = eval_reg t2 anyreg in

@@ -35,8 +35,10 @@ let rec simp t =
     | <BINOP Minus, t1, <CONST a>> when a < Int32.zero -> 
 	<BINOP Plus, t1, <CONST (Int32.neg a)>>
 
-    | <OFFSET, <LOCAL a>, <CONST b>> ->
-	<LOCAL (a + (Int32.to_int b))>
+    | <OFFSET, <LOCAL (x, a)>, <CONST b>> ->
+	<LOCAL (x, a + (Int32.to_int b))>
+    | <OFFSET, <LOCAL (x, a)>, <SYMBOL (y, b)>> when is_zero x ->
+        <LOCAL (y, a+b)>
     | <OFFSET, <OFFSET, t1, <CONST a>>, <CONST b>> ->
         simp <OFFSET, t1, <CONST (Int32.add a b)>>
     | <OFFSET, t1, <CONST z>> when z = Int32.zero ->

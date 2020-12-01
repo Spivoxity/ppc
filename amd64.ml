@@ -7,6 +7,8 @@ open Optree
 
 let pic_mode = ref false
 
+let int32 n = Int32.of_int n
+
 module AMD64 = struct
   module Metrics = struct
     let int_rep = { r_size = 4; r_align = 4 }
@@ -62,6 +64,7 @@ module AMD64 = struct
     let nregvars = 2
     let share_globals = false
     let sharing = 2
+    let fixed_frame = true
 
     (* Names the the 64-bit registers *)
     let reg_names =
@@ -120,6 +123,7 @@ module AMD64 = struct
       | AddrRRS of symbol * int * reg * reg * int
       | Label of codelab
       | Indir of reg
+      | LibAddr of string
 
     let reg64 r = Register (r, 64)
     let reg32 r = Register (r, 32)
@@ -150,12 +154,13 @@ module AMD64 = struct
         | Addr (x, n) -> Addr (x, n)
         | Label lab -> Label lab
         | Indir reg -> Indir (f reg)
+        | LibAddr x -> LibAddr x
 
     let fBase lab off =
-      if off = 0 then fStr lab 
-      else if lab = "" then fNum off
-      else if off > 0 then fMeta "$+$" [fStr lab; fNum off]
-      else fMeta "$-$" [fStr lab; fNum (-off)]
+      if off = 0 then fSym lab 
+      else if lab = nosym then fNum off
+      else if off > 0 then fMeta "$+$" [fSym lab; fNum off]
+      else fMeta "$-$" [fSym lab; fNum (-off)]
 
     let fScaled reg s =
       if s = 0 then fReg reg else 
@@ -164,7 +169,7 @@ module AMD64 = struct
     (* |fRand| -- format operand for printing *)
     let fRand =
       function
-          Const v -> fMeta "$$" [fChr '$'; fNum32 v]
+          Const n -> fMeta "$$" [fChr '$'; fNum32 n]
         | Register (r, w) ->
             begin match (r, w) with
                 (Reg i, 8) -> fStr reg8_names.(i)
@@ -182,6 +187,9 @@ module AMD64 = struct
         | Addr (lab, off) -> fBase lab off
         | Label lab -> fMeta ".$" [fLab lab]
         | Indir reg -> fMeta "*$" [fReg reg]
+        | LibAddr x ->
+            if !pic_mode then fMeta "$@PLT" [fStr x] else fStr x
+
 
     (* |preamble| -- emit start of assembler file *)
     let preamble () =
@@ -213,7 +221,7 @@ module AMD64 = struct
     (* |put_string| -- output a string constant *)
     let put_string lab s =
       segment RoData;
-      printf "$:" [fStr lab];
+      printf "$:" [fSym lab];
       let n = String.length s in
       for k = 0 to n-1 do
         let c = int_of_char s.[k] in
@@ -227,16 +235,16 @@ module AMD64 = struct
     let put_jumptab lab table =
       segment RoData;
       printf "\t.align 4\n" [];
-      printf "$:\n" [fStr lab];
+      printf "$:\n" [fSym lab];
       List.iter (fun l ->
         if !pic_mode then
-          printf "\t.long .$-$\n" [fLab l; fStr lab]
+          printf "\t.long .$-$\n" [fLab l; fSym lab]
         else
           printf "\t.long .$\n" [fLab l]) table
 
     (* |put_global| -- output a global variable *)
     let put_global lab n =
-      printf "\t.comm $, $, 8\n" [fStr lab; fNum n]
+      printf "\t.comm $, $, 8\n" [fSym lab; fNum n]
 
     let proclab = ref nosym
     let level = ref 0
@@ -251,6 +259,8 @@ module AMD64 = struct
             Reg i -> maxreg := max i !maxreg
           | _ -> failwith "use_reg"
       end
+
+    let param_offset () = Metrics.param_base
 
     (* |start_proc| -- emit start of procedure *)
     let start_proc lab lev na fsize =
@@ -268,14 +278,14 @@ module AMD64 = struct
         if !maxreg <= 0 then 0 else if !maxreg = 3 then 1 else !maxreg-10;
       if (!frame + 8*(!nsaved + !nargs)) mod 16 <> 0 then frame := !frame + 8;
       segment Text;
-      printf "$:\n" [fStr !proclab];
+      printf "$:\n" [fSym !proclab];
       put_inst "pushq" [reg64 rBP];
       if !nargs > 6 then
         put_inst "movq" [reg64 rBP; reg64 rSP];
       List.iter (function r -> put_inst "pushq" [reg64 r])
         (Util.take !nsaved stable);
       for i = !nargs-1 downto 6 do
-        put_inst "movq" [reg64 rAX; AddrR ("", 8*i-32, rBP)];
+        put_inst "movq" [reg64 rAX; AddrR (nosym, 8*i-32, rBP)];
         put_inst "pushq" [reg64 rAX]
       done;
       for i = min (!nargs-1) 5 downto 0 do
@@ -285,7 +295,7 @@ module AMD64 = struct
       if !frame > 0 then
         put_inst "subq" [reg64 rSP; Const (Int32.of_int !frame)];
       if !level > 0 then
-        put_inst "movq" [AddrR ("", -8, rBP); reg64 r10]
+        put_inst "movq" [AddrR (nosym, -8, rBP); reg64 r10]
 
     let postlude () =
       let s = !frame + 8 * !nargs in
@@ -326,6 +336,14 @@ module AMD64 = struct
 
     let gen_reg64 op rands = gen_reg_w 64 op rands
     let gen_reg32 op rands = gen_reg_w 32 op rands
+
+    let make_offset v n =
+      match v with
+         Addr (x, a) -> Addr (x, a+n)
+       | AddrR (x, a, r) -> AddrR (x, a+n, r)
+       | AddrRS (x, a, r, s) -> AddrRS (x, a+n, r, s)
+       | AddrRRS (x, a, r1, r2, s) -> AddrRRS(x, a+n, r1, r2, s)
+       | _ -> failwith (sprintf "make_offset $" [fRand v])
 
     (* |eval_reg| -- evaluate expression with result in a register *)
     let rec eval_reg t r =
@@ -467,20 +485,15 @@ module AMD64 = struct
     (* |eval_addr| -- evaluate expression to address value *)
     and eval_addr =
       function
-          <LOCAL n> ->
-            AddrR ("", n, rBP)
+          <LOCAL (_, n)> ->
+            AddrR (nosym, n, rBP)
         | <GLOBAL x> ->
             if !pic_mode then AddrR (x, 0, rIP) else Addr (x, 0)
         | <OFFSET, t1, <CONST n>> ->
             let v1 = eval_addr t1 in
-            let n2 = Int32.to_int n in
-            (match v1 with
-                Addr (x, a) -> Addr (x, a+n2)
-              | AddrR (x, a, r) -> AddrR (x, a+n2, r)
-              | AddrRS (x, a, r, s) -> AddrRS (x, a+n2, r, s)
-              | AddrRRS (x, a, r1, r2, s) -> AddrRRS(x, a+n2, r1, r2, s)
-              | _ -> failwith (sprintf "address $" [fRand v1]))
-        | <OFFSET, t1, <BINOP Lsl, t2, <CONST s>>> when s <= Int32.of_int 3 ->
+            make_offset v1 (Int32.to_int n)
+        | <OFFSET, t1, <BINOP Lsl, t2, <CONST s>>>
+                when s <= Int32.of_int 3 ->
             let v1 = eval_addr t1 in
             let v2 = eval_offset t2 in
             let s3 = Int32.to_int s in
@@ -490,7 +503,7 @@ module AMD64 = struct
                   AddrRRS (x, a, r, reg_of v2, s3)
               | _ ->
                   let v1' = gen_reg64 "leaq" [anyreg; v1] in
-                  AddrRRS ("", 0, reg_of v1', reg_of v2, s3))
+                  AddrRRS (nosym, 0, reg_of v1', reg_of v2, s3))
         | <OFFSET, t1, t2> ->
             let v1 = eval_addr t1 in
             let v2 = eval_offset t2 in
@@ -501,15 +514,15 @@ module AMD64 = struct
               | AddrRS (x, a, r, s) -> AddrRRS (x, a, reg_of v2, r, s)
               | _ ->
                   let v1' = gen_reg64 "leaq" [anyreg; v1] in
-                  AddrRRS ("", 0, reg_of v1', reg_of v2, 0))
+                  AddrRRS (nosym, 0, reg_of v1', reg_of v2, 0))
         | <LOADQ, <REGVAR n>> ->
-            let rv = eval_regvar n in AddrR ("", 0, rv)
+            let rv = eval_regvar n in AddrR (nosym, 0, rv)
         | <LOADQ, t1> ->
             let v1 = eval_addr t1 in
             let v2 = gen_reg64 "movq" [anyreg; v1] in
-            AddrR ("", 0, reg_of v2)
+            AddrR (nosym, 0, reg_of v2)
         | <TEMPQ n> ->
-            AddrR ("", 0, Alloc.use_temp n)
+            AddrR (nosym, 0, Alloc.use_temp n)
         | <w, @args> ->
             failwith (sprintf "eval_addr $" [fInst w])
 
@@ -531,8 +544,7 @@ module AMD64 = struct
           <GLOBAL x> ->
             gen "call" [Addr (x, 0)]
         | <LIBFUN x> ->
-            gen "call"
-              [if !pic_mode then Addr (x ^ "@PLT", 0) else Addr (x, 0)]
+            gen "call" [LibAddr x]
         | t1 ->
             let v1 = eval_reg t1 anyreg in
             gen "call" [Indir (reg_of v1)]
@@ -634,7 +646,7 @@ module AMD64 = struct
               reserve v2a;
               let v2 =
                 gen_reg64 "movslq"
-                  [anyreg; AddrRRS ("", 0, reg_of v2a, reg_of v1, 2)] in
+                  [anyreg; AddrRRS (nosym, 0, reg_of v2a, reg_of v1, 2)] in
               release v2a;
               emit "addq" [resize 64 v2; resize 64 v2a];
               gen "jmp" [Indir (reg_of v2)];

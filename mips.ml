@@ -5,6 +5,10 @@ open Target
 open Print
 open Optree
 
+let zero = Int32.zero
+let one = Int32.one
+let int32 x = Int32.of_int x
+
 module MIPS = struct
   module Metrics = struct
     let int_rep = { r_size = 4; r_align = 4 }
@@ -55,6 +59,7 @@ module MIPS = struct
     let nregvars = 3
     let share_globals = true
     let sharing = 2
+    let fixed_frame = true
 
     (* MIPS register assignments:
 
@@ -103,7 +108,7 @@ module MIPS = struct
 
     (* |operand| -- type of operands for assembly instructions *)
     type operand =		     (* VALUE         ASM SYNTAX       *)
-        Const of int 		     (* val	      val	       *)
+        Const of int32 		     (* val	      val	       *)
       | Register of reg		     (* [reg]	      $reg	       *)
       | Global of symbol 	     (* lab+val	      lab+val	       *)
       | Offset of int * reg          (* val+[reg]     val($reg)        *)
@@ -134,15 +139,15 @@ module MIPS = struct
     (* |fRand| -- format operand for printing *)
     let fRand =
       function
-          Const v -> fNum v
+          Const v -> fNum32 v
         | Register reg -> fReg reg
-        | Global x -> fStr x
+        | Global x -> fSym x
         | Offset (n, r) ->
             if r = r_vfp then
               fMeta "$($)" [fOff (!space+n); fReg r_sp]
             else
               fMeta "$($)" [fOff n; fReg r]
-        | Index (x, r) -> fMeta "$($)" [fStr x; fReg r]
+        | Index (x, r) -> fMeta "$($)" [fSym x; fReg r]
         | Label lab -> fMeta ".$" [fLab lab]
 
     (* |preamble| -- emit start of assembler file *)
@@ -175,7 +180,7 @@ module MIPS = struct
     (* |put_string| -- output a string constant *)
     let put_string lab s =
       segment RoData;
-      printf "$:" [fStr lab];
+      printf "$:" [fSym lab];
       let n = String.length s in
       for k = 0 to n-1 do
         let c = int_of_char s.[k] in
@@ -188,12 +193,12 @@ module MIPS = struct
 
     (* |put_global| -- output a global variable *)
     let put_global lab n =
-      printf "\t.comm $, $, 4\n" [fStr lab; fNum n]
+      printf "\t.comm $, $, 4\n" [fSym lab; fNum n]
 
     let put_jumptab lab table =
       segment RoData;
       printf "\t.align 2\n" [];
-      printf "$:\n" [fStr lab];
+      printf "$:\n" [fSym lab];
       List.iter (fun l -> printf "\t.word .$\n" [fLab l]) table
 
     let proclab = ref nosym
@@ -211,6 +216,8 @@ module MIPS = struct
             if i >= 16 && i < 24 then max_reg := max i !max_reg
         | _ ->
             failwith "use_reg"
+
+    let param_offset () = Metrics.param_base
 
     (* |start_proc| -- emit start of procedure *)
     let start_proc lab lev na fram =
@@ -232,8 +239,8 @@ module MIPS = struct
       space := 8 * ((!stack + locspace + 7)/8);
       sbase := !space - locspace;
       segment Text;
-      printf "$:\n" [fStr !proclab];
-      put_inst "addu" [Register r_sp; Register r_sp; Const (- !space)];
+      printf "$:\n" [fSym !proclab];
+      put_inst "addu" [Register r_sp; Register r_sp; Const (int32 (- !space))];
       put_inst "sw" [Register r_ra; Offset (!sbase + !nsaved*4, r_sp)];
       for i = !nsaved-1 downto 0 do
         put_inst "sw" [Register (rS i); Offset (!sbase + 4*i, r_sp)]
@@ -251,7 +258,7 @@ module MIPS = struct
         put_inst "lw" [Register (rS i); Offset (!sbase + 4*i, r_sp)]
       done;
       put_inst "lw" [Register r_ra; Offset (!sbase + !nsaved*4, r_sp)];
-      put_inst "addu" [Register r_sp; Register r_sp; Const !space];
+      put_inst "addu" [Register r_sp; Register r_sp; Const (int32 !space)];
       put_inst "jr" [Register r_ra];
       put_inst "nop" [];
       printf "\n" []
@@ -271,6 +278,8 @@ module MIPS = struct
        eval_X t, each generating code for a tree t, leaving the value in
        a register, or as an operand for another instruction, etc. *)
 
+    let const n = Const (int32 n)
+
     (* |eval_reg| -- evaluate expression with result in specified register *)
     let rec eval_reg t r =
 
@@ -285,14 +294,16 @@ module MIPS = struct
         gen_reg op [r; v1; v2] in
 
       match t with
-          <CONST 0> | <NIL> ->
+          <CONST k> when k = Int32.zero ->
             gen_move "move" [r; Register r0]
         | <CONST k> ->
             gen_reg "li" [r; Const k]
-        | <LOCAL n> ->
+        | <LOCAL (_, n)> ->
             gen_reg "la" [r; Offset(n, r_vfp)]
         | <GLOBAL x> ->
             gen_reg "la" [r; Global x]
+        | <NIL> ->
+            gen_move "move" [r; Register r0]
         | <TEMPW n> ->
             gen_move "move" [r; Register (Alloc.use_temp n)]
         | <(LOADW|LOADC), <REGVAR i>> ->
@@ -310,7 +321,7 @@ module MIPS = struct
             gen_reg "subu" [r; Register (r0); v1]
         | <MONOP Not, t1> ->
             let v1 = eval_reg t1 anyreg in
-            gen_reg "xor" [r; v1; Const 1]
+            gen_reg "xor" [r; v1; Const one]
         | <MONOP BitNot, t1> ->
             let v1 = eval_reg t1 anyreg in
             gen_reg "nor" [r; v1; Register (r0)]
@@ -337,7 +348,7 @@ module MIPS = struct
             let v1 = eval_reg t1 anyreg in
             let v2 = eval_rand t2 in
             let v3 = gen_reg "subu" [anyreg; v1; v2] in
-            gen_reg "sltu" [r; v3; Const 1]
+            gen_reg "sltu" [r; v3; Const one]
 
         | <BINOP Neq, t1, t2> ->
             let v1 = eval_reg t1 anyreg in
@@ -359,13 +370,13 @@ module MIPS = struct
             let v1 = eval_reg t1 anyreg in
             let v2 = eval_rand t2 in
             let v3 = gen_reg "slt" [anyreg; v1; v2] in
-            gen_reg "xor" [r; v3; Const 1]
+            gen_reg "xor" [r; v3; Const one]
 
         | <BINOP Leq, t2, t1> ->
             let v1 = eval_reg t1 anyreg in
             let v2 = eval_rand t2 in
             let v3 = gen_reg "slt" [anyreg; v1; v2] in
-            gen_reg "xor" [r; v3; Const 1]
+            gen_reg "xor" [r; v3; Const one]
 
         | <BOUND, t1, t2> ->
             let lab1 = label () in
@@ -373,8 +384,8 @@ module MIPS = struct
             let v2 = eval_rand t2 in
             release v2;
             emit "bltu" [v1; v2; Label lab1];
-            emit "li" [Register (rA 0); Const !line];
-            emit "jal" [Global "check"]; emit "nop" [];
+            emit "li" [Register (rA 0); const !line];
+            emit "jal" [Global (symbol "check")]; emit "nop" [];
             emit_lab lab1;
             v1
 
@@ -382,8 +393,8 @@ module MIPS = struct
             let lab1 = label () in
             let v1 = eval_reg t1 r in
             emit "bne" [v1; Register r0; Label lab1];
-            emit "li" [Register (rA 0); Const !line];
-            emit "jal" [Global "nullcheck"]; emit "nop" [];
+            emit "li" [Register (rA 0); const !line];
+            emit "jal" [Global (symbol "nullcheck")]; emit "nop" [];
             emit_lab lab1;
             v1
 
@@ -394,21 +405,22 @@ module MIPS = struct
     and eval_rand =
       (* returns |Const| or |Register| *)
       function
-          <CONST 0> | <NIL> -> Register r0
+          <CONST k> when k = zero -> Register r0
         | <CONST k> -> Const k
+        | <NIL> -> Register r0
         | t -> eval_reg t anyreg
 
     (* |eval_addr| -- evaluate to form an address for lw or sw *)
     and eval_addr =
       function
           <GLOBAL x> -> Global x
-        | <LOCAL n> -> Offset (n, r_vfp)
+        | <LOCAL (_, n)> -> Offset (n, r_vfp)
         | <OFFSET, <GLOBAL x>, t2> ->
             let v2 = eval_reg t2 anyreg in
             Index (x, reg_of v2)
         | <OFFSET, t1, <CONST n>> ->
             let v1 = eval_reg t1 anyreg in
-            Offset (n, reg_of v1)
+            Offset (Int32.to_int n, reg_of v1)
         | t ->
             let v1 = eval_reg t anyreg in
             Offset (0, reg_of v1)
@@ -416,8 +428,10 @@ module MIPS = struct
     (* |eval_call| -- execute procedure call *)
     let eval_call =
       function
-          <GLOBAL f> | <LIBFUN f> ->
+          <GLOBAL f> ->
             gen "jal" [Global f]; gen "nop" []
+        | <LIBFUN f> ->
+            gen "jal" [Global (symbol f)]; gen "nop" []
         | t ->
             let v1 = eval_reg t anyreg in
             gen "jalr" [v1]; gen "nop" []
@@ -484,8 +498,8 @@ module MIPS = struct
             let lab1 = gensym () in
             let v1 = eval_reg t1 anyreg in
             reserve v1;
-            gen "bgeu" [v1; Const n; Label deflab]; gen "nop" [];
-            let v2 = gen_reg "sll" [anyreg; v1; Const 2] in
+            gen "bgeu" [v1; const n; Label deflab]; gen "nop" [];
+            let v2 = gen_reg "sll" [anyreg; v1; const 2] in
             let v3 = gen_reg "lw" [anyreg; Index (lab1, reg_of v2)] in
             gen "j" [v3]; gen "nop" [];
             put_jumptab lab1 table

@@ -119,14 +119,11 @@ let spill_temps move rs =
 
 let regvar i = List.nth stable i
 
-let get_regvars nregv =
-  disabled := Util.take nregv stable
-
-let reset () = 
+let init nregv = 
   ntemps := 0;
   Hashtbl.clear temptab;
   let zero x = (x := 0) in List.iter (refcount zero) pool;
-  disabled := []
+  disabled := Util.take nregv stable
 
 let outg = ref 0
 

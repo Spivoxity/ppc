@@ -1,4 +1,4 @@
-(* ppcu/optree.mli *)
+(* ppc/optree.mli *)
 (* Copyright (c) 2017--18 J. M. Spivey *)
 
 (* |op| -- type of picoPascal operators *)
@@ -8,12 +8,31 @@ type op = Plus | Minus | Times | Div | Mod | Eq
 
 val fOp : op -> Print.arg
 
-(* |symbol| -- global symbols *)
-type symbol = string
 
-val nosym : symbol
+type symbol
 
-val gensym : unit -> symbol
+val symbol: string -> symbol
+
+val fSym: symbol -> Print.arg
+
+val gensym: unit -> symbol
+
+val nosym: symbol
+
+
+type reladdr =
+  { a_id: int;
+    a_name: string;
+    mutable a_val: int }
+
+val norel : reladdr
+
+val relative: string -> int -> reladdr
+
+val is_zero : reladdr -> bool
+
+val fRel: reladdr -> Print.arg
+
 
 (* |codelab| -- type of code labels *)
 type codelab
@@ -28,9 +47,10 @@ val fLab : codelab -> Print.arg
 (* |inst| -- type of intermediate instructions *)
 type inst =
     CONST of int32 		(* Constant (value) *)
-  | GLOBAL of symbol    	(* Global address (symbol) *)
-  | LIBFUN of symbol		(* Library function *)
-  | LOCAL of int		(* Local address (offset) *)
+  | SYMBOL of reladdr * int     (* Symbolic constant *)
+  | GLOBAL of symbol 		(* Global address (symbol) *)
+  | LIBFUN of string		(* Library function *)
+  | LOCAL of reladdr * int	(* Local address (symbol, offset) *)
   | REGVAR of int		(* Register (index) *)
   | NIL				(* Null pointer *)
   | LOADC			(* Load char *)
@@ -87,6 +107,8 @@ val canon : optree -> optree list
 
 (* |flatten| -- move args before calls *)
 val flatten : optree list -> optree list
+
+val fix_relative : optree list -> optree list
 
 val fTree : optree -> Print.arg
 

@@ -2,7 +2,7 @@
 
 include config.mk
 
-all: ppc-amd64 ppc-thumb
+all: $(PPC)
 
 ALLARCH = ppc-amd64 ppc-mips ppc-arm ppc-thumb ppc-risc86
 

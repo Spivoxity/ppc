@@ -65,7 +65,7 @@ module F(Tgt : Target.T) = struct
   (* |schain| -- code to follow N links of static chain *)
   let rec schain n =
     if n = 0 then
-      <LOCAL 0>
+      <LOCAL (norel, 0)>
     else
       <load_addr,
         <OFFSET, schain (n-1), const Metrics.stat_link>>
@@ -73,10 +73,10 @@ module F(Tgt : Target.T) = struct
   (* |address| -- code to push address of an object *)
   let address d =
     match d.d_addr with
-        Global g ->
-          <GLOBAL g>
-      | Local off -> 
-          <OFFSET, schain (!level - d.d_level), const off>
+        Global x -> 
+          <GLOBAL x>
+      | Local x ->
+          <OFFSET, schain (!level - d.d_level), <SYMBOL (x, 0)>>
       | Absolute addr ->
           <CONST addr>
       | Register i ->
@@ -140,10 +140,12 @@ module F(Tgt : Target.T) = struct
             if not !boundchk then t else <BOUND, t, const (bound a.e_type)> in
           <OFFSET, 
             gen_addr a,
-            <BINOP Times, bound_check (gen_expr i), const (size_of v.e_type)>>
+            <BINOP Times,
+              bound_check (gen_expr i),
+              const (size_of v.e_type)>>
       | Select (r, x) ->
-          let d = get_def x in
-          <OFFSET, gen_addr r, const (offset_of d)>
+          let y = offset_of (get_def x) in
+          <OFFSET, gen_addr r, <SYMBOL (y, 0)>>
       | Deref p ->
           let null_check t =
             if not !boundchk then t else <NCHECK, t> in
@@ -428,11 +430,45 @@ module F(Tgt : Target.T) = struct
 
   module Code = Coder.F(Tgt)
 
+  let fix_param adj d =
+    match d.d_addr with
+        Local a ->
+          a.a_val <- a.a_val - adj
+      | _ -> failwith "fix_param"
+
+  let rec max_params =
+    function
+      <w, @args> ->
+        let x = match w with CALL n | CALLW n | CALLQ n -> n | _ -> 0 in
+        max x (Util.maximum (List.map max_params args))
+
   (* |do_proc| -- generate code for a procedure and pass to the back end *)
-  let do_proc lab lev nargs (Block (_, body, fsize, nregv)) =
-    level := lev+1; retlab := label (); Alloc.reset ();
-    Code.translate lab lev nargs !fsize !nregv
-      (Optree.canon <SEQ, gen_stmt body, <LABEL !retlab>>)
+  let do_proc lab lev nargs params (Block (_, body, fsize, nregv)) =
+    level := lev+1; retlab := label ();
+    Alloc.init !nregv;
+    let code = Optree.canon <SEQ, gen_stmt body, <LABEL !retlab>> in
+    Alloc.set_outgoing (Util.maximum (List.map max_params code));
+    Emitter.start_proc lab !level nargs !fsize;
+
+    begin try 
+      Code.translate code;
+    with exc ->
+      (* Code generation failed, but let's see how far we got *)
+      let bt = Printexc.get_backtrace () in
+      printf "Partial code:\n" [];
+      Code.output ();
+      printf "Backtrace:\n$\n" [fStr bt];
+      raise exc
+    end;
+
+    if not Tgt.Metrics.fixed_frame then begin
+      let adj = Tgt.Metrics.param_base - Tgt.Emitter.param_offset () in
+      List.iter (fix_param adj) params
+    end;
+
+    Emitter.prelude ();
+    Code.output ();
+    Emitter.postlude()
 
   (* |get_label| -- extract label for global definition *)
   let get_label d =
@@ -448,7 +484,7 @@ module F(Tgt : Target.T) = struct
           let p = get_proc d.d_type in
           let line = Source.get_line x.x_line in
           printf "$$\n" [fStr Emitter.comment; fStr line];
-          do_proc (get_label d) d.d_level p.p_pcount block;
+          do_proc (get_label d) d.d_level p.p_pcount p.p_fparams block;
           gen_procs (get_decls block)
       | _ -> ()
 
@@ -469,7 +505,7 @@ module F(Tgt : Target.T) = struct
   let translate (Prog (block, glodefs)) =
     Emitter.preamble ();
     gen_procs (get_decls block);
-    do_proc "pmain" 0 0 block;
+    do_proc (symbol "pmain") 0 0 [] block;
     List.iter gen_global !glodefs;
     List.iter (fun (lab, s) ->
       Emitter.put_string lab s) (string_table ());

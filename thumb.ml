@@ -54,6 +54,7 @@ module Thumb = struct
     let nregvars = 2
     let share_globals = true
     let sharing = 0
+    let fixed_frame = true
 
     (* ARM register assignments:
 
@@ -83,8 +84,6 @@ module Thumb = struct
   open Alloc
 
   module Emitter = struct
-    let space = ref 0
-
     (* |operand| -- type of operands for assembly instructions *)
     type operand =		  (* VALUE	  ASM SYNTAX       *)
         Const of int32 		  (* val	  #val	           *)
@@ -122,6 +121,8 @@ module Thumb = struct
 
     let use_reg _ = ()
 
+    let param_offset () = Metrics.param_base
+
     (* |fRand| -- format operand for printing *)
     let fRand =
       function
@@ -134,13 +135,13 @@ module Thumb = struct
             else fMeta "[$, #$]" [fReg reg; fNum off]
         | Index2 (r1, r2) ->
             fMeta "[$, $]" [fReg r1; fReg r2]
-        | Global lab -> fStr lab
+        | Global lab -> fSym lab
         | Label lab -> fMeta ".$" [fLab lab]
         | Literal (x, n) ->
-            if x = "" then fMeta "=$" [fNum32 n]
-            else if n = zero then fMeta "=$" [fStr x]
-            else if n > zero then fMeta "=$+$" [fStr x; fNum32 n]
-            else fMeta "=$-$" [fStr x; fNum32 (Int32.neg n)]
+            if x = nosym then fMeta "=$" [fNum32 n]
+            else if n = zero then fMeta "=$" [fSym x]
+            else if n > zero then fMeta "=$+$" [fSym x; fNum32 n]
+            else fMeta "=$-$" [fSym x; fNum32 (Int32.neg n)]
 
     (* |preamble| -- emit start of assembler file *)
     let preamble () =
@@ -177,7 +178,7 @@ module Thumb = struct
     (* |put_string| -- output a string constant *)
     let put_string lab s =
       segment RoData;
-      printf "$:" [fStr lab];
+      printf "$:" [fSym lab];
       let n = String.length s in
       for k = 0 to n-1 do
         let c = int_of_char s.[k] in
@@ -190,19 +191,21 @@ module Thumb = struct
 
     (* |put_global| -- output a global variable *)
     let put_global lab n =
-      printf "\t.comm $, $, 4\n" [fStr lab; fNum n]
+      printf "\t.comm $, $, 4\n" [fSym lab; fNum n]
 
-    let proclab = ref ""
+    let proclab = ref nosym
     let frame = ref 0
     let stack = ref 0
     let nargs = ref 0
+    let space = ref 0
 
     (* |start_proc| -- emit start of procedure *)
     let start_proc lab lev na fram =
       proclab := lab; frame := fram; nargs := na; stack := 0; 
       let ns = Alloc.outgoing () in
       if ns > 4 then stack := 4*ns-16;
-      space := 4 * ((!frame + !stack + 3)/4)
+      space := 4 * ((!frame + !stack + 3)/4);
+      printf "@start_proc space=$\n" [fNum !space]
 
     let adjsp op =
       if !space <= 1024 then
@@ -217,7 +220,7 @@ module Thumb = struct
     let prelude () =
       segment Text;
       printf "\t.thumb_func\n" [];
-      printf "$:\n" [fStr !proclab];
+      printf "$:\n" [fSym !proclab];
       if !nargs = 1 then
         printf "\tpush {r0}\n" []
       else if !nargs > 1 then
@@ -320,10 +323,10 @@ module Thumb = struct
           <CONST k> when fits_immed8 k -> 
             gen_reg "movs" [r; Const k]
         | <CONST k> ->
-            gen_reg "ldr" [r; Literal ("", k)]
+            gen_reg "ldr" [r; Literal (nosym, k)]
         | <NIL> ->
             gen_reg "movs" [r; Const zero]
-        | <LOCAL n> when fits_immed8 (int32 ((!space+n) / 4)) ->
+        | <LOCAL (_, n)> when fits_immed8 (int32 ((!space+n) / 4)) ->
             let a = (!space+n) mod 4 in
             if a = 0 then
               gen_reg "add" [r; Register r_sp; Const (int32 (!space+n))]
@@ -333,8 +336,8 @@ module Thumb = struct
                   Const (int32 (!space+n-a))] in
               gen_reg "adds" [r; v1; Const (int32 a)]
             end
-        | <LOCAL n> ->
-            let v1 = gen_reg "ldr" [r; Literal ("", int32 (!space+n))] in
+        | <LOCAL (_, n)> ->
+            let v1 = gen_reg "ldr" [r; Literal (nosym, int32 (!space+n))] in
             emit "add" [v1; Register r_sp];
             v1
         | <GLOBAL x> ->
@@ -344,7 +347,7 @@ module Thumb = struct
         | <(LOADW|LOADC), <REGVAR i>> ->
             let rv = regvar i in
             reserve_reg rv; gen_move "mov" [r; Register rv]
-        | <LOADW, <LOCAL n>> when !space+n < 1024 ->
+        | <LOADW, <LOCAL (_, n)>> when !space+n < 1024 ->
             gen_reg "ldr" [r; Index (r_sp, !space+n)]
         | <LOADW, t1> -> 
             let v1 = eval_addr 128 t1 in
@@ -388,8 +391,8 @@ module Thumb = struct
             release v2;
             emit "cmp" [v1; v2];
             emit "blo" [Label lab];
-            emit "ldr" [Register (reg 0); Literal ("", int32 !line)];
-            emit "bl" [Global "check"];
+            emit "ldr" [Register (reg 0); Literal (nosym, int32 !line)];
+            emit "bl" [Global (symbol "check")];
             emit_lab lab;
             v1
 
@@ -398,8 +401,8 @@ module Thumb = struct
             let v1 = eval_reg t1 r in
             emit "cmp" [v1; Const zero];
             emit "bne" [Label lab];
-            emit "ldr" [Register (reg 0); Literal ("", int32 !line)];
-            emit "bl" [Global "nullcheck"];
+            emit "ldr" [Register (reg 0); Literal (nosym, int32 !line)];
+            emit "bl" [Global (symbol "nullcheck")];
             emit_lab lab;
             v1
 
@@ -410,9 +413,9 @@ module Thumb = struct
     and eval_addr limit =
       (* returns |Index| or |Index2| *)
       function
-          <LOCAL n> ->
+          <LOCAL (_, n)> ->
             let a = (!space+n) mod 4 in
-            let v1 = eval_reg <LOCAL (n-a)> anyreg in
+            let v1 = eval_reg <LOCAL (norel, n-a)> anyreg in
             Index (reg_of v1, a)
         | <OFFSET, t1, <CONST n>>
               when n >= zero && n < int32 limit ->
@@ -429,8 +432,8 @@ module Thumb = struct
     (* |eval_call| -- execute procedure call *)
     let eval_call =
       function
-          <GLOBAL f> | <LIBFUN f> -> 
-            gen "bl" [Global f]
+          <GLOBAL f> -> gen "bl" [Global f]
+        | <LIBFUN f> -> gen "bl" [Global (symbol f)]
         | t -> 
             let v1 = eval_reg t anyreg in
             gen "blx" [v1]
@@ -486,7 +489,7 @@ module Thumb = struct
         | <(STOREW|STOREC), t1, <REGVAR i>> ->
             let rv = regvar i in
             release (eval_reg t1 (Register rv))
-        | <STOREW, t1, <LOCAL n>> when !space+n < 1024 ->
+        | <STOREW, t1, <LOCAL (_, n)>> when !space+n < 1024 ->
             let v1 = eval_reg t1 anyreg in
             gen "str" [v1; Index (r_sp, !space+n)]
         | <STOREW, t1, t2> -> 

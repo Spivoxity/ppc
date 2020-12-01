@@ -398,13 +398,16 @@ let align alignment offset =
   let margin = !offset mod alignment in
   if margin <> 0 then offset := !offset - margin + alignment
 
+let local x a =
+  Local (Optree.relative (spelling x) a)
+
 (* upward_alloc -- allocate objects upward in memory *)
 let upward_alloc size d =
   let r = d.d_type.t_rep in
   align r.r_align size;
   let addr = !size in
   size := !size + r.r_size;
-  d.d_addr <- Local addr
+  d.d_addr <- local d.d_tag addr
 
 (* local_alloc -- allocate locals downward in memory *)
 let local_alloc size nreg d =
@@ -416,7 +419,7 @@ let local_alloc size nreg d =
     let r = d.d_type.t_rep in
     align r.r_align size;
     size := !size + r.r_size;
-    d.d_addr <- Local (Metrics.local_base !level - !size)
+    d.d_addr <- local d.d_tag (Metrics.local_base !level - !size)
   end
 
 (* param_alloc -- allocate space for formal parameters *)
@@ -424,16 +427,16 @@ let param_alloc pcount d =
   let s = Metrics.param_rep.r_size in
   match d.d_kind with
       CParamDef | VParamDef ->
-	d.d_addr <- Local (Metrics.param_base + s * !pcount);
+	d.d_addr <- local d.d_tag (Metrics.param_base + s * !pcount);
 	incr pcount
     | PParamDef ->
-	d.d_addr <- Local (Metrics.param_base + s * !pcount);
+	d.d_addr <- local d.d_tag (Metrics.param_base + s * !pcount);
 	pcount := !pcount + 2
     | _ -> failwith "param_alloc"
 
 (* |global_alloc| -- allocate label for global variable *)
 let global_alloc d =
-  d.d_addr <- Global (sprintf "_$" [fId d.d_tag])
+  d.d_addr <- Global (symbol (sprintf "_$" [fId d.d_tag]))
 
 (* |do_alloc| -- call allocation function for definitions that need it *)
 let do_alloc alloc ds =
@@ -521,7 +524,7 @@ and check_decl d env =
     | ProcDecl (Heading (x, _, _) as heading, body) ->
 	let t = check_heading env heading in
 	let d = make_def x.x_name ProcDef t in
-	d.d_addr <- Global (sprintf "_$" [fId d.d_tag]);
+	d.d_addr <- Global (symbol (sprintf "_$" [fId d.d_tag]));
 	x.x_def <- Some d; add_def d env
     | PParamDecl (Heading (x, _, _) as heading) ->
         let t = check_heading env heading in

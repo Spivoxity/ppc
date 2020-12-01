@@ -129,11 +129,11 @@ let op_size =
   function
       LOADC ->
         Metrics.char_rep.r_size
-    | CONST _ | LOADW | CALLW _ | MONOP _ | BINOP _ | BOUND ->
+    | CONST _ | LOADW | CALLW _ | MONOP _ | BINOP _ | BOUND | SYMBOL _ ->
         Metrics.int_rep.r_size
     | GLOBAL _ | LOCAL _ | NIL | LOADQ | CALLQ _ | OFFSET | NCHECK ->
         Metrics.addr_rep.r_size
-    | _ -> failwith "op_size"
+    | i -> failwith (sprintf "op_size $" [fInst i])
 
 let make_temp g =
     Alloc.inc_temp g.g_temp;
