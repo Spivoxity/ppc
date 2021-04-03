@@ -50,6 +50,7 @@ module Thumb = struct
 
     let param_base = 20
     let local_base lev = 0
+    let local_align = 4
     let stat_link = 12
     let nregvars = 2
     let share_globals = true
@@ -415,7 +416,7 @@ module Thumb = struct
       function
           <LOCAL (_, n)> ->
             let a = (!space+n) mod 4 in
-            let v1 = eval_reg <LOCAL (norel, n-a)> anyreg in
+            let v1 = eval_reg <LOCAL (nosym, n-a)> anyreg in
             Index (reg_of v1, a)
         | <OFFSET, t1, <CONST n>>
               when n >= zero && n < int32 limit ->

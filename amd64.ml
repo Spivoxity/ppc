@@ -60,6 +60,7 @@ module AMD64 = struct
 
     let param_base = 0
     let local_base lev = if lev > 1 then -8 else 0
+    let local_align = 1
     let stat_link = -8
     let nregvars = 2
     let share_globals = false

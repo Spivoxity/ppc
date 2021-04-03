@@ -22,8 +22,9 @@ module type MetricsT = sig
   val param_rep : metrics	(* Procedure parameters *)
   val max_align : int
 
-  val param_base : int		(* worst case offset of first param from fp *)
+  val param_base : int		(* Worst case offset of first param from fp *)
   val local_base : int -> int	(* -ve offset of bottom of frame head *)
+  val local_align : int         (* Minimum alignment for locals *)
   val stat_link : int		(* Offset of static link *)
   val nregvars : int		(* Number of register variables *)
   val share_globals : bool      (* Whether to use CSE on <GLOBAL x> *)

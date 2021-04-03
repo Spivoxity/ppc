@@ -41,6 +41,7 @@ module RISC86 = struct
 
     let param_base = 20
     let local_base lev = if lev > 1 then -4 else 0
+    let local_align = 1
     let stat_link = -4
     let nregvars = 0
     let share_globals = false

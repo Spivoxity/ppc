@@ -53,6 +53,7 @@ module ARM = struct
 
     let param_base = 40
     let local_base lev = 0
+    let local_align = 1
     let stat_link = 0
     let nregvars = 3
     let share_globals = true

@@ -417,8 +417,8 @@ let local_alloc size nreg d =
   end
   else begin
     let r = d.d_type.t_rep in
-    align r.r_align size;
     size := !size + r.r_size;
+    align (max r.r_align Metrics.local_align) size;
     d.d_addr <- local d.d_tag (Metrics.local_base !level - !size)
   end
 
