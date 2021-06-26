@@ -25,41 +25,41 @@ Hello, world!
 	.section .text
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r8, fp, ip, lr}
 	mov fp, sp
 @   i := 0;
 	mov r0, #0
 	ldr r1, =_i
 	str r0, [r1]
-.L3:
+.L2:
 @   while in[i] <> '*' do
-	ldr r4, =_i
-	ldr r5, [r4]
+	ldr r5, =_i
+	ldr r6, [r5]
 	ldr r0, =g1
-	ldrb r6, [r0, r5]
-	cmp r6, #42
-	beq .L5
+	ldrb r7, [r0, r6]
+	cmp r7, #42
+	beq .L4
 @     out[i] := in[i];
 	ldr r0, =_out
-	strb r6, [r0, r5]
+	strb r7, [r0, r6]
 @     i := i + 1
-	ldr r0, [r4]
+	ldr r0, [r5]
 	add r0, r0, #1
-	str r0, [r4]
-	b .L3
-.L5:
+	str r0, [r5]
+	b .L2
+.L4:
 @   out[i] := chr(0);
-	ldr r4, =_out
+	ldr r5, =_out
 	mov r0, #0
 	ldr r1, =_i
 	ldr r1, [r1]
-	strb r0, [r4, r1]
+	strb r0, [r5, r1]
 @   print_string(out); newline()
 	mov r1, #128
-	mov r0, r4
+	mov r0, r5
 	bl print_string
 	bl newline
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4-r8, fp, sp, pc}
 	.ltorg
 
 	.comm _out, 128, 4

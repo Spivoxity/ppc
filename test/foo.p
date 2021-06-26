@@ -34,50 +34,50 @@ The final answer is calculated as 37
 _gcd:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   x := u; y := v;
-	ldr r4, [fp, #40]
-	ldr r5, [fp, #44]
-.L3:
+	ldr r5, [fp, #24]
+	ldr r6, [fp, #28]
+.L2:
 @   while x <> y do
-	cmp r4, r5
-	beq .L5
+	cmp r5, r6
+	beq .L4
 @     if x < y then
-	cmp r4, r5
-	bge .L7
+	cmp r5, r6
+	bge .L6
 @       y := y - x
-	sub r5, r5, r4
-	b .L3
-.L7:
+	sub r6, r6, r5
+	b .L2
+.L6:
 @       x := x - y
-	sub r4, r4, r5
-	b .L3
-.L5:
+	sub r5, r5, r6
+	b .L2
+.L4:
 @   return x
-	mov r0, r4
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	mov r0, r5
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   z := gcd(3*37, 5*37);
 	mov r1, #185
 	mov r0, #111
 	bl _gcd
-	ldr r4, =_z
-	str r0, [r4]
+	ldr r5, =_z
+	str r0, [r5]
 @   print_string("The final answer is calculated as ");
 	mov r1, #35
 	ldr r0, =g1
 	bl print_string
 @   print_num(z); newline()
-	ldr r0, [r4]
+	ldr r0, [r5]
 	bl print_num
 	bl newline
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 	.comm _z, 4, 4

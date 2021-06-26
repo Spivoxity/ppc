@@ -58,6 +58,7 @@ module ARM = struct
     let nregvars = 3
     let share_globals = true
     let sharing = 2
+    let addrmode = 2
     let fixed_frame = false
 
     (* ARM register assignments:

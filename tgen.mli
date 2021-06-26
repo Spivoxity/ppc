@@ -4,7 +4,7 @@
 (* Intermediate code generator: this translates the program into optrees,
    and feeds them to the code generator one at a time. *)
 
-module F(Target : Target.T) : sig
+module F(Targ : Target.T) : sig
   (* |translate| -- generate intermediate code *)
   val translate : Tree.program -> unit
 end

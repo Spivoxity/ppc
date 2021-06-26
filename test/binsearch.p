@@ -29,7 +29,7 @@ end.
 	.section .text
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r8, fp, ip, lr}
 	mov fp, sp
 @   y := 200000000;
 	ldr r0, =200000000
@@ -45,26 +45,26 @@ pmain:
 	str r0, [r1]
 .L2:
 @   while a+1 < b do
-	ldr r4, =_a
-	ldr r5, [r4]
+	ldr r5, =_a
+	ldr r6, [r5]
 	ldr r0, =_b
-	ldr r6, [r0]
-	add r0, r5, #1
-	cmp r0, r6
+	ldr r7, [r0]
+	add r0, r6, #1
+	cmp r0, r7
 	bge .L4
 @     m := (a+b) div 2;
-	add r0, r5, r6
-	asr r5, r0, #1
+	add r0, r6, r7
+	asr r6, r0, #1
 	ldr r0, =_m
-	str r5, [r0]
+	str r6, [r0]
 @     if m*m <= y then
-	mul r0, r5, r5
+	mul r0, r6, r6
 	ldr r1, =_y
 	ldr r1, [r1]
 	cmp r0, r1
 	bgt .L6
 @       a := m
-	str r5, [r4]
+	str r6, [r5]
 	b .L2
 .L6:
 @       b := m
@@ -79,7 +79,7 @@ pmain:
 	ldr r0, [r0]
 	bl print_num
 	bl newline
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4-r8, fp, sp, pc}
 	.ltorg
 
 	.comm _y, 4, 4

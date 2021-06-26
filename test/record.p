@@ -65,100 +65,104 @@ end.
 _equal:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   i := 0;
-	mov r4, #0
-.L6:
+	mov r5, #0
+.L2:
 @   while i < 10 do
-	cmp r4, #10
-	bge .L8
+	cmp r5, #10
+	bge .L4
 @     if x[i] <> y[i] then
-	ldr r0, [fp, #40]
-	ldrb r0, [r0, r4]
-	ldr r1, [fp, #44]
-	ldrb r1, [r1, r4]
+	ldr r0, [fp, #24]
+	ldrb r0, [r0, r5]
+	ldr r1, [fp, #28]
+	ldrb r1, [r1, r5]
 	cmp r0, r1
-	beq .L11
+	beq .L7
 @       return false
 	mov r0, #0
-	b .L5
-.L11:
+	b .L1
+.L7:
 @     i := i+1
-	add r4, r4, #1
-	b .L6
-.L8:
+	add r5, r5, #1
+	b .L2
+.L4:
 @   return true
 	mov r0, #1
-.L5:
-	ldmfd fp, {r4-r10, fp, sp, pc}
+.L1:
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 @ proc store(n: string; a: integer);
 _store:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   db[N].name := n;
-	ldr r4, =_db
-	ldr r5, =_N
+	ldr r5, =_db
+	ldr r6, =_N
 	mov r2, #10
-	ldr r1, [fp, #40]
-	ldr r0, [r5]
-	add r0, r4, r0, LSL #4
+	ldr r1, [fp, #24]
+	ldr r0, [r6]
+	add r0, r5, r0, LSL #4
+	ldr r3, =0
+	add r0, r0, r3
 	bl memcpy
 @   db[N].age := a;
-	ldr r0, [fp, #44]
-	ldr r1, [r5]
-	add r1, r4, r1, LSL #4
+	ldr r0, [fp, #28]
+	ldr r1, [r6]
+	add r1, r5, r1, LSL #4
 	str r0, [r1, #12]
 @   N := N+1
-	ldr r0, [r5]
+	ldr r0, [r6]
 	add r0, r0, #1
-	str r0, [r5]
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	str r0, [r6]
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 @ proc recall(n: string): integer;
 _recall:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   i := 0;
-	mov r4, #0
-.L14:
+	mov r5, #0
+.L10:
 @   while i < N do
 	ldr r0, =_N
 	ldr r0, [r0]
-	cmp r4, r0
-	bge .L16
+	cmp r5, r0
+	bge .L12
 @     if equal(db[i].name, n) then
-	ldr r5, =_db
-	ldr r1, [fp, #40]
-	add r0, r5, r4, LSL #4
+	ldr r6, =_db
+	ldr r1, [fp, #24]
+	add r0, r6, r5, LSL #4
+	ldr r2, =0
+	add r0, r0, r2
 	bl _equal
 	cmp r0, #0
-	beq .L19
+	beq .L15
 @       return db[i].age
-	add r0, r5, r4, LSL #4
+	add r0, r6, r5, LSL #4
 	ldr r0, [r0, #12]
-	b .L13
-.L19:
+	b .L9
+.L15:
 @     i := i+1
-	add r4, r4, #1
-	b .L14
-.L16:
+	add r5, r5, #1
+	b .L10
+.L12:
 @   return 999
 	ldr r0, =999
-.L13:
-	ldmfd fp, {r4-r10, fp, sp, pc}
+.L9:
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @   N := 0;
 	mov r0, #0
@@ -182,7 +186,7 @@ pmain:
 	bl _recall
 	bl print_num
 	bl newline
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 	.comm _db, 320, 4

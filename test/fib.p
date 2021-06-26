@@ -27,10 +27,10 @@ end.
 _fib:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   if n <= 1 then 
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #24]
 	cmp r0, #1
 	bgt .L3
 @     return 1 
@@ -38,28 +38,28 @@ _fib:
 	b .L1
 .L3:
 @     return fib(n-1) + fib(n-2)
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #24]
 	sub r0, r0, #1
 	bl _fib
-	mov r4, r0
-	ldr r0, [fp, #40]
+	mov r5, r0
+	ldr r0, [fp, #24]
 	sub r0, r0, #2
 	bl _fib
-	add r0, r4, r0
+	add r0, r5, r0
 .L1:
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @   print_num(fib(6)); newline()
 	mov r0, #6
 	bl _fib
 	bl print_num
 	bl newline
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 @ End

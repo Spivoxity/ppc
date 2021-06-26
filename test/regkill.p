@@ -30,25 +30,25 @@ end.
 	.section .text
 _p:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   y := 1;
-	mov r4, #1
+	mov r5, #1
 @   z := y + 1;
-	add r5, r4, #1
+	add r6, r5, #1
 @   z := 3;
-	mov r5, #3
+	mov r6, #3
 @   z := y + 1;
-	add r5, r4, #1
+	add r6, r5, #1
 @   x := z
 	ldr r0, =_x
-	str r5, [r0]
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	str r6, [r0]
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @   p();
 	bl _p
@@ -58,7 +58,7 @@ pmain:
 	bl print_num
 @   newline()
 	bl newline
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 	.comm _x, 4, 4

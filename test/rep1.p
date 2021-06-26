@@ -22,7 +22,7 @@ end.
 	.section .text
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r8, fp, ip, lr}
 	mov fp, sp
 @   i := 0;
 	mov r0, #0
@@ -35,29 +35,29 @@ pmain:
 	str r0, [r1]
 .L4:
 @       j := j+1; k := k+1; 
-	ldr r4, =_j
-	ldr r0, [r4]
-	add r5, r0, #1
-	str r5, [r4]
-	ldr r4, =_k
-	ldr r0, [r4]
+	ldr r5, =_j
+	ldr r0, [r5]
 	add r6, r0, #1
-	str r6, [r4]
+	str r6, [r5]
+	ldr r5, =_k
+	ldr r0, [r5]
+	add r7, r0, #1
+	str r7, [r5]
 @     until j > i;
-	ldr r4, =_i
-	ldr r7, [r4]
-	cmp r5, r7
+	ldr r5, =_i
+	ldr r8, [r5]
+	cmp r6, r8
 	ble .L4
 @     i := i+1
-	add r5, r7, #1
-	str r5, [r4]
-	cmp r5, #10
+	add r6, r8, #1
+	str r6, [r5]
+	cmp r6, #10
 	ble .L2
 @   print_num(k); newline()
-	mov r0, r6
+	mov r0, r7
 	bl print_num
 	bl newline
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4-r8, fp, sp, pc}
 	.ltorg
 
 	.comm _i, 4, 4

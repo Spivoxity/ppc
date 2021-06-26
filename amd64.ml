@@ -65,6 +65,7 @@ module AMD64 = struct
     let nregvars = 2
     let share_globals = false
     let sharing = 2
+    let addrmode = 2
     let fixed_frame = true
 
     (* Names the the 64-bit registers *)

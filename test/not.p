@@ -18,22 +18,22 @@ ok
 	.section .text
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   b := not b;
-	ldr r4, =_b
-	ldrb r0, [r4]
-	eor r5, r0, #1
-	strb r5, [r4]
+	ldr r5, =_b
+	ldrb r0, [r5]
+	eor r6, r0, #1
+	strb r6, [r5]
 @   if b then print_string("ok"); newline() end
-	cmp r5, #0
-	beq .L2
+	cmp r6, #0
+	beq .L1
 	mov r1, #3
 	ldr r0, =g1
 	bl print_string
 	bl newline
-.L2:
-	ldmfd fp, {r4-r10, fp, sp, pc}
+.L1:
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 	.comm _b, 1, 4

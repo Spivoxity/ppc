@@ -20,12 +20,12 @@ begin foo(b) end.
 _foo:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 	ldr ip, =40000
 	sub sp, sp, ip
 @   x := 5000;
-	ldr r4, =5000
+	ldr r5, =5000
 @   c[5000] := 4;
 	mov r0, #4
 	ldr r1, =-20000
@@ -33,22 +33,22 @@ _foo:
 @   a[5000] := c[x]+3 
 	ldr ip, =-40000
 	add r0, fp, ip
-	ldr r0, [r0, r4, LSL #2]
+	ldr r0, [r0, r5, LSL #2]
 	add r0, r0, #3
-	ldr r1, [fp, #40]
+	ldr r1, [fp, #24]
 	ldr r2, =20000
 	str r0, [r1, r2]
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @ begin foo(b) end.
 	ldr r0, =_b
 	bl _foo
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 	.comm _b, 40000, 4

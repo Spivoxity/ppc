@@ -172,59 +172,59 @@ _queens:
 	b .L1
 .L3:
 @     y := 0;
-	mov r4, #0
+	mov r5, #0
 .L5:
 @     while y < N do
-	cmp r4, #8
+	cmp r5, #8
 	bge .L1
 @       if rank[y] and diagup[k+y] and diagdown[k+(N-1)-y] then
-	ldr r7, =_rank
-	add r8, r7, r4
-	ldrb r0, [r8]
+	ldr r8, =_rank
+	add r9, r8, r5
+	ldrb r0, [r9]
 	cmp r0, #0
 	beq .L10
-	ldr r9, =_diagup
+	ldr r10, =_diagup
 	ldr r0, [fp, #40]
-	add r1, r9, r0
-	add r1, r1, r4
+	add r1, r10, r0
+	add r1, r1, r5
 	ldrb r2, [r1]
 	cmp r2, #0
 	beq .L10
 	ldr r2, =_diagdown
 	add r3, r0, #7
-	sub r3, r3, r4
+	sub r3, r3, r5
 	add r3, r2, r3
-	ldrb r10, [r3]
-	cmp r10, #0
+	ldrb r4, [r3]
+	cmp r4, #0
 	beq .L10
 @ 	rank[y] := false; diagup[k+y] := false; diagdown[k+(N-1)-y] := false;
-	mov r10, #0
-	strb r10, [r8]
-	mov r10, #0
-	strb r10, [r1]
+	mov r4, #0
+	strb r4, [r9]
+	mov r4, #0
+	strb r4, [r1]
 	mov r1, #0
 	strb r1, [r3]
 @ 	choice[k] := y; queens(k+1);
 	ldr r1, =_choice
-	str r4, [r1, r0, LSL #2]
-	mov r8, r0
-	add r0, r8, #1
-	mov r8, r2
+	str r5, [r1, r0, LSL #2]
+	mov r9, r0
+	add r0, r9, #1
+	mov r9, r2
 	bl _queens
 @ 	rank[y] := true; diagup[k+y] := true; diagdown[k+(N-1)-y] := true;
 	mov r0, #1
-	strb r0, [r7, r4]
-	ldr r7, [fp, #40]
+	strb r0, [r8, r5]
+	ldr r8, [fp, #40]
 	mov r0, #1
-	add r1, r9, r7
-	strb r0, [r1, r4]
+	add r1, r10, r8
+	strb r0, [r1, r5]
 	mov r0, #1
-	add r1, r7, #7
-	sub r1, r1, r4
-	strb r0, [r8, r1]
+	add r1, r8, #7
+	sub r1, r1, r5
+	strb r0, [r9, r1]
 .L10:
 @       y := y+1
-	add r4, r4, #1
+	add r5, r5, #1
 	b .L5
 .L1:
 	ldmfd fp, {r4-r10, fp, sp, pc}
@@ -233,77 +233,77 @@ _queens:
 @ proc print();
 _print:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   x := 0;
-	mov r4, #0
+	mov r5, #0
 .L14:
 @   while x < N do
-	cmp r4, #8
+	cmp r5, #8
 	bge .L16
 @     print_num(choice[x]+1);
 	ldr r0, =_choice
-	ldr r0, [r0, r4, LSL #2]
+	ldr r0, [r0, r5, LSL #2]
 	add r0, r0, #1
 	bl print_num
 @     x := x+1
-	add r4, r4, #1
+	add r5, r5, #1
 	b .L14
 .L16:
 @   newline()
 	bl newline
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 @ proc init();
 _init:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   i := 0; 
-	mov r4, #0
+	mov r5, #0
 .L18:
 @   while i < N do 
-	cmp r4, #8
+	cmp r5, #8
 	bge .L20
 @     rank[i] := true; 
 	mov r0, #1
 	ldr r1, =_rank
-	strb r0, [r1, r4]
+	strb r0, [r1, r5]
 @     i := i+1 
-	add r4, r4, #1
+	add r5, r5, #1
 	b .L18
 .L20:
 @   i := 0; 
-	mov r4, #0
+	mov r5, #0
 .L21:
 @   while i < 2*N-1 do 
-	cmp r4, #15
+	cmp r5, #15
 	bge .L17
 @     diagup[i] := true; diagdown[i] := true ;
 	mov r0, #1
 	ldr r1, =_diagup
-	strb r0, [r1, r4]
+	strb r0, [r1, r5]
 	mov r0, #1
 	ldr r1, =_diagdown
-	strb r0, [r1, r4]
+	strb r0, [r1, r5]
 @     i := i+1
-	add r4, r4, #1
+	add r5, r5, #1
 	b .L21
 .L17:
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @   init();
 	bl _init
 @   queens(0)
 	mov r0, #0
 	bl _queens
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 	.comm _choice, 32, 4

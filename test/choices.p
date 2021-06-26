@@ -57,72 +57,74 @@ def
 _choose:
 	mov ip, sp
 	stmfd sp!, {r0-r3}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   if k <= n then
-	ldr r4, [fp, #40]
-	ldr r0, [fp, #44]
-	cmp r4, r0
-	bgt .L2
+	ldr r5, [fp, #24]
+	ldr r0, [fp, #28]
+	cmp r5, r0
+	bgt .L1
 @     if k = 0 then
-	cmp r4, #0
-	bne .L7
+	cmp r5, #0
+	bne .L6
 @       suffix(); newline()
-	ldr r10, [fp, #52]
-	ldr r0, [fp, #48]
+	ldr r4, [fp, #36]
+	ldr r0, [fp, #32]
 	blx r0
 	bl newline
-	b .L2
-.L7:
+	b .L1
+.L6:
 @       choose(k, n-1, suffix);
-	ldr r3, [fp, #52]
-	ldr r2, [fp, #48]
-	ldr r0, [fp, #44]
+	ldr r3, [fp, #36]
+	ldr r2, [fp, #32]
+	ldr r0, [fp, #28]
 	sub r1, r0, #1
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #24]
 	bl _choose
 @       choose(k-1, n-1, suffix1)
 	mov r3, fp
 	ldr r2, =_suffix1
-	ldr r0, [fp, #44]
+	ldr r0, [fp, #28]
 	sub r1, r0, #1
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #24]
 	sub r0, r0, #1
 	bl _choose
-.L2:
-	ldmfd fp, {r4-r10, fp, sp, pc}
+.L1:
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 @   proc suffix1();
 _suffix1:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @     print_char(letters[n-1]); suffix()
 	ldr r0, =g1
-	ldr r1, [fp, #24]
-	ldr r1, [r1, #44]
+	ldr r1, [fp]
+	ldr r1, [r1, #28]
 	add r0, r0, r1
 	ldrb r0, [r0, #-1]
 	bl print_char
-	ldr r4, [fp, #24]
-	ldr r10, [r4, #52]
-	ldr r0, [r4, #48]
+	ldr r0, [fp]
+	ldr r1, =32
+	add r5, r0, r1
+	ldr r4, [r5, #4]
+	ldr r0, [r5]
 	blx r0
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 @ proc null(); begin end;
 _null:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @   choose(3, 6, null)
 	mov r3, #0
@@ -130,7 +132,7 @@ pmain:
 	mov r1, #6
 	mov r0, #3
 	bl _choose
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 	.section .rodata

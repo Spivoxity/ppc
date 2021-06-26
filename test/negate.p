@@ -31,49 +31,49 @@ OK2
 	.section .text
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r8, fp, ip, lr}
 	mov fp, sp
 @   x := true;
-	mov r4, #1
+	mov r5, #1
 	ldr r0, =_x
-	strb r4, [r0]
+	strb r5, [r0]
 @   y := not x;
-	eor r5, r4, #1
-	ldr r6, =_y
-	strb r5, [r6]
+	eor r6, r5, #1
+	ldr r7, =_y
+	strb r6, [r7]
 @   y := not y;
-	eor r5, r5, #1
-	strb r5, [r6]
+	eor r6, r6, #1
+	strb r6, [r7]
 @   if x = y then
-	cmp r4, r5
-	bne .L6
+	cmp r5, r6
+	bne .L4
 @     print_string("OK"); newline()
 	mov r1, #3
 	ldr r0, =g1
 	bl print_string
 	bl newline
-.L6:
+.L4:
 @   u := 37;
-	mov r4, #37
+	mov r5, #37
 	ldr r0, =_u
-	str r4, [r0]
+	str r5, [r0]
 @   v := -u;
-	neg r5, r4
-	ldr r6, =_v
-	str r5, [r6]
+	neg r6, r5
+	ldr r7, =_v
+	str r6, [r7]
 @   v := -v;
-	neg r5, r5
-	str r5, [r6]
+	neg r6, r6
+	str r6, [r7]
 @   if u = v then
-	cmp r4, r5
-	bne .L3
+	cmp r5, r6
+	bne .L1
 @     print_string("OK2"); newline()
 	mov r1, #4
 	ldr r0, =g2
 	bl print_string
 	bl newline
-.L3:
-	ldmfd fp, {r4-r10, fp, sp, pc}
+.L1:
+	ldmfd fp, {r4-r8, fp, sp, pc}
 	.ltorg
 
 	.comm _x, 1, 4

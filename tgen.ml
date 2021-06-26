@@ -11,10 +11,10 @@ open Target
 let debug = Coder.debug
 let boundchk = ref false
 
-module F(Tgt : Target.T) = struct
-  module Metrics = Tgt.Metrics
-  module Emitter = Tgt.Emitter
-  module Alloc = Tgt.Alloc
+module F(Targ : Target.T) = struct
+  module Metrics = Targ.Metrics
+  module Emitter = Targ.Emitter
+  module Alloc = Targ.Alloc
 
   open Metrics
 
@@ -429,7 +429,7 @@ module F(Tgt : Target.T) = struct
      (* Label the code with a line number *)
      <SEQ, <LINE s.s_line>, code>
 
-  module Code = Coder.F(Tgt)
+  module Code = Coder.F(Targ)
 
   let fix_param adj d =
     match d.d_addr with
@@ -462,8 +462,8 @@ module F(Tgt : Target.T) = struct
       raise exc
     end;
 
-    if not Tgt.Metrics.fixed_frame then begin
-      let adj = Tgt.Metrics.param_base - Tgt.Emitter.param_offset () in
+    if not Targ.Metrics.fixed_frame then begin
+      let adj = Targ.Metrics.param_base - Targ.Emitter.param_offset () in
       List.iter (fix_param adj) params
     end;
 

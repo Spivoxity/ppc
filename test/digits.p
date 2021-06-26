@@ -47,15 +47,15 @@ end.
 _search:
 	mov ip, sp
 	stmfd sp!, {r0-r3}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 	sub sp, sp, #8
 @   if k = 9 then
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #24]
 	cmp r0, #9
 	bne .L3
 @     print_num(n); newline()
-	ldr r0, [fp, #44]
+	ldr r0, [fp, #28]
 	bl print_num
 	bl newline
 	b .L1
@@ -65,32 +65,32 @@ _search:
 	str r0, [fp, #-4]
 .L5:
 @     while d < 10 do
-	ldr r5, [fp, #-4]
-	cmp r5, #10
+	ldr r6, [fp, #-4]
+	cmp r6, #10
 	bge .L1
 @       n1 := 10 * n + d;
-	ldr r0, [fp, #44]
+	ldr r0, [fp, #28]
 	mov r1, #10
 	mul r0, r0, r1
-	add r4, r0, r5
+	add r5, r0, r6
 @       if (n1 mod (k+1) = 0) and avail(d) then
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #24]
 	add r1, r0, #1
-	mov r0, r4
+	mov r0, r5
 	bl int_mod
 	cmp r0, #0
 	bne .L10
 	ldr r0, [fp, #-4]
-	ldr r10, [fp, #52]
-	ldr r1, [fp, #48]
+	ldr r4, [fp, #36]
+	ldr r1, [fp, #32]
 	blx r1
 	cmp r0, #0
 	beq .L10
 @         search(k+1, n1, avail1)
 	mov r3, fp
 	ldr r2, =_avail1
-	mov r1, r4
-	ldr r0, [fp, #40]
+	mov r1, r5
+	ldr r0, [fp, #24]
 	add r0, r0, #1
 	bl _search
 .L10:
@@ -100,48 +100,50 @@ _search:
 	str r0, [fp, #-4]
 	b .L5
 .L1:
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 @   proc avail1(x: integer): boolean;
 _avail1:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @     if x <> d then 
-	ldr r4, [fp, #40]
 	ldr r5, [fp, #24]
-	ldr r0, [r5, #-4]
-	cmp r4, r0
+	ldr r6, [fp]
+	ldr r0, [r6, #-4]
+	cmp r5, r0
 	beq .L14
 @       return avail(x)
-	mov r0, r4
-	ldr r10, [r5, #52]
-	ldr r1, [r5, #48]
+	ldr r0, =32
+	add r6, r6, r0
+	mov r0, r5
+	ldr r4, [r6, #4]
+	ldr r1, [r6]
 	blx r1
 	b .L12
 .L14:
 @       return false
 	mov r0, #0
 .L12:
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 @ proc avail0(x: integer): boolean;
 _avail0:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @   return true
 	mov r0, #1
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @   search(0, 0, avail0)
 	mov r3, #0
@@ -149,7 +151,7 @@ pmain:
 	mov r1, #0
 	mov r0, #0
 	bl _search
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 @ End

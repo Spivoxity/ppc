@@ -32,32 +32,32 @@ end.
 _one:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @   two()
-	mov r10, fp
+	mov r4, fp
 	bl _two
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 @   proc two(); begin x := x+1 end;
 _two:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   proc two(); begin x := x+1 end;
-	ldr r0, [fp, #24]
-	ldr r4, [r0, #40]
-	ldr r0, [r4]
+	ldr r0, [fp]
+	ldr r5, [r0, #16]
+	ldr r0, [r5]
 	add r0, r0, #1
-	str r0, [r4]
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	str r0, [r5]
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 @ proc three();
 _three:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 	sub sp, sp, #8
 @   y := 36;
@@ -71,16 +71,16 @@ _three:
 	bl print_num
 @   newline()
 	bl newline
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @   three()
 	bl _three
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 @ End

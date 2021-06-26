@@ -71,96 +71,96 @@ def
 _cons:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   new(p);
 	mov r0, #8
 	bl new
-	mov r4, r0
+	mov r5, r0
 @   p^.head := head; p^.tail := tail;
-	ldrb r0, [fp, #40]
-	strb r0, [r4]
-	ldr r0, [fp, #44]
-	str r0, [r4, #4]
+	ldrb r0, [fp, #24]
+	strb r0, [r5]
+	ldr r0, [fp, #28]
+	str r0, [r5, #4]
 @   return p
-	mov r0, r4
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	mov r0, r5
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 @ proc print(p: list);
 _print:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   q := p;
-	ldr r4, [fp, #40]
-.L4:
+	ldr r5, [fp, #24]
+.L3:
 @   while q <> nil do
-	cmp r4, #0
-	beq .L3
+	cmp r5, #0
+	beq .L2
 @     print_char(q^.head);
-	ldrb r0, [r4]
+	ldrb r0, [r5]
 	bl print_char
 @     q := q^.tail
-	ldr r4, [r4, #4]
-	b .L4
-.L3:
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldr r5, [r5, #4]
+	b .L3
+.L2:
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 @ proc choose(k, n: integer; suffix: list);
 _choose:
 	mov ip, sp
 	stmfd sp!, {r0-r3}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   if k <= n then
-	ldr r4, [fp, #40]
-	ldr r0, [fp, #44]
-	cmp r4, r0
-	bgt .L7
+	ldr r5, [fp, #24]
+	ldr r0, [fp, #28]
+	cmp r5, r0
+	bgt .L6
 @     if k = 0 then
-	cmp r4, #0
-	bne .L12
+	cmp r5, #0
+	bne .L11
 @       print(suffix); newline()
-	ldr r0, [fp, #48]
+	ldr r0, [fp, #32]
 	bl _print
 	bl newline
-	b .L7
-.L12:
+	b .L6
+.L11:
 @       choose(k, n-1, suffix);
-	ldr r2, [fp, #48]
-	ldr r0, [fp, #44]
+	ldr r2, [fp, #32]
+	ldr r0, [fp, #28]
 	sub r1, r0, #1
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #24]
 	bl _choose
 @       choose(k-1, n-1, cons(letters[n-1], suffix))
-	ldr r4, [fp, #44]
-	ldr r1, [fp, #48]
+	ldr r5, [fp, #28]
+	ldr r1, [fp, #32]
 	ldr r0, =g1
-	add r0, r0, r4
+	add r0, r0, r5
 	ldrb r0, [r0, #-1]
 	bl _cons
 	mov r2, r0
-	sub r1, r4, #1
-	ldr r0, [fp, #40]
+	sub r1, r5, #1
+	ldr r0, [fp, #24]
 	sub r0, r0, #1
 	bl _choose
-.L7:
-	ldmfd fp, {r4-r10, fp, sp, pc}
+.L6:
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @   choose(3, 6, nil)
 	mov r2, #0
 	mov r1, #6
 	mov r0, #3
 	bl _choose
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 	.section .rodata

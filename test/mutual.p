@@ -54,83 +54,83 @@ flip(5) = 38
 _flip:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   if i = 0 then 
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #24]
 	cmp r0, #0
-	bne .L7
+	bne .L3
 @     r := 1
-	mov r4, #1
-	b .L8
-.L7:
+	mov r5, #1
+	b .L4
+.L3:
 @     r := 2 * flop(i-1)
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #24]
 	sub r0, r0, #1
 	bl _flop
-	lsl r4, r0, #1
-.L8:
+	lsl r5, r0, #1
+.L4:
 @   print_string("flip("); print_num(i); 
 	mov r1, #6
 	ldr r0, =g1
 	bl print_string
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #24]
 	bl print_num
 @   print_string(") = "); print_num(r);
 	mov r1, #5
 	ldr r0, =g2
 	bl print_string
-	mov r0, r4
+	mov r0, r5
 	bl print_num
 @   newline();
 	bl newline
 @   return r
-	mov r0, r4
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	mov r0, r5
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 @ proc flop(i: integer): integer;
 _flop:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   if i = 0 then 
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #24]
 	cmp r0, #0
-	bne .L11
+	bne .L7
 @     r := 1
-	mov r4, #1
-	b .L12
-.L11:
+	mov r5, #1
+	b .L8
+.L7:
 @     r := flip(i-1) + k
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #24]
 	sub r0, r0, #1
 	bl _flip
-	add r4, r0, #5
-.L12:
+	add r5, r0, #5
+.L8:
 @   print_string("flop("); print_num(i); 
 	mov r1, #6
 	ldr r0, =g3
 	bl print_string
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #24]
 	bl print_num
 @   print_string(") = "); print_num(r);
 	mov r1, #5
 	ldr r0, =g4
 	bl print_string
-	mov r0, r4
+	mov r0, r5
 	bl print_num
 @   newline();
 	bl newline
 @   return r
-	mov r0, r4
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	mov r0, r5
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @   print_num(flip(5));
 	mov r0, #5
@@ -138,7 +138,7 @@ pmain:
 	bl print_num
 @   newline()
 	bl newline
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 	.section .rodata

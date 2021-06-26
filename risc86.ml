@@ -46,6 +46,7 @@ module RISC86 = struct
     let nregvars = 0
     let share_globals = false
     let sharing = 2
+    let addrmode = 2
     let fixed_frame = true
 
     let reg_names =

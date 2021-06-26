@@ -45,7 +45,7 @@ foo
 	.section .text
 _foo:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 	sub sp, sp, #40
 @   print_string("foo"); newline();
@@ -54,40 +54,40 @@ _foo:
 	bl print_string
 	bl newline
 @   j := 2; b[0] := 1; b[1] := 1;
-	mov r4, #2
+	mov r5, #2
 	mov r0, #1
 	str r0, [fp, #-40]
 	mov r0, #1
 	str r0, [fp, #-36]
-.L4:
+.L2:
 @   while 10 > j do
-	cmp r4, #10
-	bge .L6
+	cmp r5, #10
+	bge .L4
 @     b[j] := b[j-2] + b[j-1];
 	add r0, fp, #-40
-	add r5, r0, r4, LSL #2
-	ldr r0, [r5, #-8]
-	ldr r1, [r5, #-4]
+	add r6, r0, r5, LSL #2
+	ldr r0, [r6, #-8]
+	ldr r1, [r6, #-4]
 	add r0, r0, r1
-	str r0, [r5]
+	str r0, [r6]
 @     print_char(' '); print_num(b[j]);
 	mov r0, #32
 	bl print_char
 	add r0, fp, #-40
-	ldr r0, [r0, r4, LSL #2]
+	ldr r0, [r0, r5, LSL #2]
 	bl print_num
 @     j := 1+j
-	add r4, r4, #1
-	b .L4
-.L6:
+	add r5, r5, #1
+	b .L2
+.L4:
 @   newline();
 	bl newline
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r8, fp, ip, lr}
 	mov fp, sp
 @   print_string("baz"); newline();
 	mov r1, #4
@@ -98,41 +98,41 @@ pmain:
 	mov r0, #2
 	ldr r1, =_i
 	str r0, [r1]
-	ldr r4, =_a
+	ldr r5, =_a
 	mov r0, #1
-	str r0, [r4]
-	mov r0, #1
-	str r0, [r4, #4]
-.L8:
-@   while i < 10 do
-	ldr r4, =_i
-	ldr r5, [r4]
-	cmp r5, #10
-	bge .L10
-@     a[i] := a[i-2] + a[i-1];
-	ldr r6, =_a
-	add r5, r6, r5, LSL #2
-	ldr r0, [r5, #-8]
-	ldr r1, [r5, #-4]
-	add r0, r0, r1
 	str r0, [r5]
+	mov r0, #1
+	str r0, [r5, #4]
+.L6:
+@   while i < 10 do
+	ldr r5, =_i
+	ldr r6, [r5]
+	cmp r6, #10
+	bge .L8
+@     a[i] := a[i-2] + a[i-1];
+	ldr r7, =_a
+	add r6, r7, r6, LSL #2
+	ldr r0, [r6, #-8]
+	ldr r1, [r6, #-4]
+	add r0, r0, r1
+	str r0, [r6]
 @     print_char(' '); print_num(a[i]);
 	mov r0, #32
 	bl print_char
-	ldr r0, [r4]
-	ldr r0, [r6, r0, LSL #2]
+	ldr r0, [r5]
+	ldr r0, [r7, r0, LSL #2]
 	bl print_num
 @     i := i+1
-	ldr r0, [r4]
+	ldr r0, [r5]
 	add r0, r0, #1
-	str r0, [r4]
-	b .L8
-.L10:
+	str r0, [r5]
+	b .L6
+.L8:
 @   newline();
 	bl newline
 @   foo()
 	bl _foo
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4-r8, fp, sp, pc}
 	.ltorg
 
 	.comm _i, 4, 4

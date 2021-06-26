@@ -35,6 +35,7 @@ let main () =
       fname := fn; chan := open_in fn; seen := true
     end in
   Arg.parse spec open_it "Usage: nodexp [-q] file";
+(* ignore (Parsing.set_trace true); *)
   let lexbuf = Lexing.from_channel !chan in
   begin 
     if not !qflag then printf "# 1 \"$\"\n" [fStr !fname];

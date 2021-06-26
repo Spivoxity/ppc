@@ -35,26 +35,26 @@ _foo:
 	stmfd sp!, {r4-r10, fp, ip, lr}
 	mov fp, sp
 @   return
-	ldr r4, [fp, #40]
-	ldr r5, [fp, #44]
-	sub r6, r4, r5
-	ldr r7, [fp, #48]
-	sub r8, r4, r7
-	ldr r9, [fp, #52]
-	sub r4, r4, r9
-	sub r0, r5, r7
-	sub r5, r5, r9
-	sub r7, r7, r9
-	mul r1, r6, r8
-	mul r1, r1, r4
-	mul r1, r1, r0
+	ldr r5, [fp, #40]
+	ldr r6, [fp, #44]
+	sub r7, r5, r6
+	ldr r8, [fp, #48]
+	sub r9, r5, r8
+	ldr r10, [fp, #52]
+	sub r5, r5, r10
+	sub r0, r6, r8
+	sub r6, r6, r10
+	sub r8, r8, r10
+	mul r1, r7, r9
 	mul r1, r1, r5
-	mul r1, r1, r7
-	mul r2, r8, r4
+	mul r1, r1, r0
+	mul r1, r1, r6
+	mul r1, r1, r8
+	mul r2, r9, r5
 	mul r0, r2, r0
-	mul r0, r0, r5
-	mul r0, r0, r7
 	mul r0, r0, r6
+	mul r0, r0, r8
+	mul r0, r0, r7
 	add r0, r1, r0
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
@@ -63,18 +63,18 @@ _foo:
 _baz:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   return (n-1)*(n-1)
-	ldr r0, [fp, #40]
-	sub r4, r0, #1
-	mul r0, r4, r4
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldr r0, [fp, #24]
+	sub r5, r0, #1
+	mul r0, r5, r5
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @   print_num(foo(1,2,3,4)); newline();
 	mov r3, #4
@@ -89,7 +89,7 @@ pmain:
 	bl _baz
 	bl print_num
 	bl newline
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 @ End

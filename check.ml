@@ -11,7 +11,8 @@ open Print
 let regvars = ref true
 
 module F(Types: Dict.TypesT) = struct
-  module Metrics = Types.Metrics
+
+module Metrics = Types.Metrics
 
 (* EXPRESSIONS *)
 

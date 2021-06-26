@@ -25,7 +25,7 @@ end.
 	.section .text
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r8, fp, ip, lr}
 	mov fp, sp
 @   i := 0; found := false;
 	mov r0, #0
@@ -34,33 +34,33 @@ pmain:
 	mov r0, #0
 	ldr r1, =_found
 	strb r0, [r1]
-.L3:
+.L2:
 @   while not found do
-	ldr r4, =_found
-	ldrb r0, [r4]
+	ldr r5, =_found
+	ldrb r0, [r5]
 	cmp r0, #0
-	bne .L5
+	bne .L4
 @     found := target[i] = 'd';
-	ldr r5, =_i
-	ldr r6, [r5]
+	ldr r6, =_i
+	ldr r7, [r6]
 	ldr r0, =g1
-	ldrb r0, [r0, r6]
+	ldrb r0, [r0, r7]
 	cmp r0, #100
 	mov r0, #0
 	moveq r0, #1
-	strb r0, [r4]
+	strb r0, [r5]
 @     i := i + 1
-	add r0, r6, #1
-	str r0, [r5]
-	b .L3
-.L5:
+	add r0, r7, #1
+	str r0, [r6]
+	b .L2
+.L4:
 @   print_num(i);
 	ldr r0, =_i
 	ldr r0, [r0]
 	bl print_num
 @   newline()
 	bl newline
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4-r8, fp, sp, pc}
 	.ltorg
 
 	.comm _i, 4, 4

@@ -30,10 +30,10 @@ end.
 _fac:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   if n = 0 then
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #24]
 	cmp r0, #0
 	bne .L3
 @     return 1
@@ -41,17 +41,17 @@ _fac:
 	b .L1
 .L3:
 @     return n * fac(n-1)
-	ldr r4, [fp, #40]
-	sub r0, r4, #1
+	ldr r5, [fp, #24]
+	sub r0, r5, #1
 	bl _fac
-	mul r0, r4, r0
+	mul r0, r5, r0
 .L1:
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @   f := fac(10);
 	mov r0, #10
@@ -62,7 +62,7 @@ pmain:
 	bl print_num
 @   newline()
 	bl newline
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 	.comm _f, 4, 4

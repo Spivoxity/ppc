@@ -31,50 +31,50 @@ end.
 _flip:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @   if x = 0 then return 1 else return 2 * flop(x-1) end
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #16]
 	cmp r0, #0
 	bne .L3
 	mov r0, #1
 	b .L1
 .L3:
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #16]
 	sub r0, r0, #1
-	mov r10, fp
+	mov r4, fp
 	bl _flop
 	lsl r0, r0, #1
 .L1:
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 @   proc flop(y: integer): integer;
 _flop:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @     if y = 0 then return 1 else return flip(y-1) + x end
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #16]
 	cmp r0, #0
 	bne .L7
 	mov r0, #1
 	b .L5
 .L7:
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #16]
 	sub r0, r0, #1
 	bl _flip
-	ldr r1, [fp, #24]
-	ldr r1, [r1, #40]
+	ldr r1, [fp]
+	ldr r1, [r1, #16]
 	add r0, r0, r1
 .L5:
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @   print_num(flip(5));
 	mov r0, #5
@@ -82,7 +82,7 @@ pmain:
 	bl print_num
 @   newline()
 	bl newline
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 @ End

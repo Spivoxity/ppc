@@ -3,7 +3,6 @@
 
 open Print
 
-
 let nsyms = ref 0
 
 type symbol =

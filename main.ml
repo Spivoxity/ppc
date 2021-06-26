@@ -13,11 +13,11 @@ let optlevel = Coder.optlevel
 let regvars = Check.regvars
 let pic_mode = ref false
 
-module F(Tgt : Target.T) = struct
-  module Types = Dict.TypesF(Tgt.Metrics)
+module F(Targ : Target.T) = struct
+  open Targ
+  module Types = Dict.TypesF(Metrics)
   module Check = Check.F(Types)
-  module Tgen = Tgen.F(Tgt)
-  module Emitter = Tgt.Emitter
+  module Tgen = Tgen.F(Targ)
 
   let usage = "Usage: ppc [options] file"
 
@@ -31,7 +31,8 @@ module F(Tgt : Target.T) = struct
         "-O2", Arg.Unit (fun () -> optlevel := 2),
           " more optimisation (common subexpressions)";
         "-noregvars", Arg.Unit (fun () -> regvars := false),
-          " disable register variables"] @ Tgt.options)
+          " disable register variables"]
+        @ Targ.options)
 
   let main () =
     let fns = ref [] in

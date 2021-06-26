@@ -29,6 +29,11 @@ module type MetricsT = sig
   val nregvars : int		(* Number of register variables *)
   val share_globals : bool      (* Whether to use CSE on <GLOBAL x> *)
   val sharing : int		(* Whether to use CSE across jumps or calls *)
+    (* Values: 0 -- no sharing across jumps; 1 -- no sharing across calls;
+         2 -- sharing across extended basic blocks *)
+  val addrmode : int            (* Power of addressing modes *)
+    (* Values: 0 -- basic [reg+off] mode ; 1 -- target has [reg+reg] mode;
+         2 -- target has [reg+reg*scale] mode *)
   val fixed_frame : bool        (* Whether to fix relative addresses early *)
 
   val reg_names : string array

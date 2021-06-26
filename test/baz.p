@@ -27,20 +27,20 @@ end.
 _baz:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   x := u;
-	ldr r4, [fp, #40]
+	ldr r5, [fp, #24]
 	ldr r0, =_x
-	str r4, [r0]
+	str r5, [r0]
 @   return x
-	mov r0, r4
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	mov r0, r5
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @   print_num(baz(37)); newline();
 	mov r0, #37
@@ -52,7 +52,7 @@ pmain:
 	ldr r0, [r0]
 	bl print_num
 	bl newline
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 	.comm _x, 4, 4

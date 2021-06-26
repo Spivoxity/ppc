@@ -14,12 +14,11 @@ let optlevel = ref 0
 
 let outgoing = ref 0
 
-module F(Tgt : Target.T) = struct
-  module Alloc = Tgt.Alloc
-  module Emitter = Tgt.Emitter
+module F(Targ : Target.T) = struct
+  open Targ
 
   (* A queue of instructions for the body of the current procedure.
-     This depends on the targets Emitter, and provides an interface
+     This depends on the target's Emitter, and provides an interface
      for code selection that implicitly manages registers. *)
   module IQueue = struct
     type operand = Emitter.operand
@@ -161,10 +160,10 @@ module F(Tgt : Target.T) = struct
   end
 
   (* The generic CSE pass specialised to this target. *)
-  module Share = Share.F(Tgt.Metrics)(Alloc)
+  module Share = Share.F(Targ)
 
   (* The instruction selector for the target. *)  
-  module Select = Tgt.Selector(IQueue)
+  module Select = Selector(IQueue)
 
   (* |process| -- generate code for a statement, or note a line number *)
   let process =
@@ -210,7 +209,7 @@ module F(Tgt : Target.T) = struct
   let translate code =
     let code00 = show "Initial code" code in
     let code05 =
-      if not Tgt.Metrics.fixed_frame then code00 else
+      if not Metrics.fixed_frame then code00 else
         Optree.fix_relative code00 in
     let code10 =
       if !optlevel < 1 then code05 else
@@ -226,4 +225,5 @@ module F(Tgt : Target.T) = struct
 
   let output () =
     IQueue.flush ()
+
 end

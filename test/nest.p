@@ -16,17 +16,17 @@ begin print_num(f(f(3))); newline() end.
 _f:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @ proc f(x: integer): integer; begin return 2*x end;
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #16]
 	lsl r0, r0, #1
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @ begin print_num(f(f(3))); newline() end.
 	mov r0, #3
@@ -34,7 +34,7 @@ pmain:
 	bl _f
 	bl print_num
 	bl newline
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 @ End

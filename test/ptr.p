@@ -72,10 +72,10 @@ end.
 _build:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   if n <= 1 then
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #24]
 	cmp r0, #1
 	bgt .L3
 @     return nil
@@ -85,33 +85,33 @@ _build:
 @     new(t);
 	mov r0, #8
 	bl new
-	mov r4, r0
+	mov r5, r0
 @     t^.left := build(n-2);
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #24]
 	sub r0, r0, #2
 	bl _build
-	str r0, [r4]
+	str r0, [r5]
 @     t^.right := build(n-1);
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #24]
 	sub r0, r0, #1
 	bl _build
-	str r0, [r4, #4]
+	str r0, [r5, #4]
 @     return t
-	mov r0, r4
+	mov r0, r5
 .L1:
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 @ proc print(t: tree);
 _print:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   tt := t;
-	ldr r4, [fp, #40]
+	ldr r5, [fp, #24]
 @   if tt = nil then
-	cmp r4, #0
+	cmp r5, #0
 	bne .L7
 @     print_char('.')
 	mov r0, #46
@@ -122,78 +122,78 @@ _print:
 	mov r0, #40
 	bl print_char
 @     print(tt^.left);
-	ldr r0, [r4]
+	ldr r0, [r5]
 	bl _print
 @     print(tt^.right);
-	ldr r0, [r4, #4]
+	ldr r0, [r5, #4]
 	bl _print
 @     print_char(')')
 	mov r0, #41
 	bl print_char
 .L5:
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 @ proc count(t: tree): integer;
 _count:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   tt := t;
-	ldr r4, [fp, #40]
+	ldr r5, [fp, #24]
 @   if tt = nil then
-	cmp r4, #0
+	cmp r5, #0
 	bne .L11
 @     return 1
 	mov r0, #1
 	b .L9
 .L11:
 @     return count(tt^.left) + count(tt^.right)
-	ldr r0, [r4]
+	ldr r0, [r5]
 	bl _count
-	mov r5, r0
-	ldr r0, [r4, #4]
+	mov r6, r0
+	ldr r0, [r5, #4]
 	bl _count
-	add r0, r5, r0
+	add r0, r6, r0
 .L9:
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r8, fp, ip, lr}
 	mov fp, sp
 @   for n := 0 to 7 do
 	mov r0, #0
 	ldr r1, =_n
 	str r0, [r1]
-	mov r4, #7
+	mov r5, #7
 .L14:
-	ldr r5, =_n
-	ldr r6, [r5]
-	cmp r6, r4
+	ldr r6, =_n
+	ldr r7, [r6]
+	cmp r7, r5
 	bgt .L13
 @     p := build(n);
-	mov r0, r6
+	mov r0, r7
 	bl _build
-	ldr r6, =_p
-	str r0, [r6]
+	ldr r7, =_p
+	str r0, [r7]
 @     print_num(count(p)); print_char(' ');
 	bl _count
 	bl print_num
 	mov r0, #32
 	bl print_char
 @     print(p); newline()
-	ldr r0, [r6]
+	ldr r0, [r7]
 	bl _print
 	bl newline
-	ldr r0, [r5]
+	ldr r0, [r6]
 	add r0, r0, #1
-	str r0, [r5]
+	str r0, [r6]
 	b .L14
 .L13:
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4-r8, fp, sp, pc}
 	.ltorg
 
 	.comm _n, 4, 4

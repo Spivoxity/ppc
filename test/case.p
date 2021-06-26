@@ -41,7 +41,7 @@ end.
 	.section .text
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   i := 0;
 	mov r0, #0
@@ -50,11 +50,11 @@ pmain:
 .L2:
 @   while i < 10 do
 	ldr r0, =_i
-	ldr r4, [r0]
-	cmp r4, #10
+	ldr r5, [r0]
+	cmp r5, #10
 	bge .L1
 @     case i of
-	sub r0, r4, #1
+	sub r0, r5, #1
 	cmp r0, #8
 	ldrlo pc, [pc, r0, LSL #2]
 	b .L5
@@ -68,61 +68,61 @@ pmain:
 	.word .L12
 .L7:
 @         i := i + 1;
-	ldr r4, =_i
-	ldr r0, [r4]
-	add r5, r0, #1
-	str r5, [r4]
+	ldr r5, =_i
+	ldr r0, [r5]
+	add r6, r0, #1
+	str r6, [r5]
 @ 	i := i + 2
-	add r0, r5, #2
-	str r0, [r4]
+	add r0, r6, #2
+	str r0, [r5]
 	b .L6
 .L8:
 @         i := i + 1;
-	ldr r4, =_i
-	ldr r0, [r4]
-	add r5, r0, #1
-	str r5, [r4]
+	ldr r5, =_i
+	ldr r0, [r5]
+	add r6, r0, #1
+	str r6, [r5]
 @ 	i := i + 2
-	add r0, r5, #2
-	str r0, [r4]
+	add r0, r6, #2
+	str r0, [r5]
 	b .L6
 .L9:
 @         i := i + 1;
-	ldr r4, =_i
-	ldr r0, [r4]
-	add r5, r0, #1
-	str r5, [r4]
+	ldr r5, =_i
+	ldr r0, [r5]
+	add r6, r0, #1
+	str r6, [r5]
 @ 	i := i + 2
-	add r0, r5, #2
-	str r0, [r4]
+	add r0, r6, #2
+	str r0, [r5]
 	b .L6
 .L10:
 @         i := i - 1;
-	ldr r4, =_i
-	ldr r0, [r4]
+	ldr r5, =_i
+	ldr r0, [r5]
 	sub r0, r0, #1
-	str r0, [r4]
+	str r0, [r5]
 	b .L6
 .L11:
 @         i := i - 1;
-	ldr r4, =_i
-	ldr r0, [r4]
+	ldr r5, =_i
+	ldr r0, [r5]
 	sub r0, r0, #1
-	str r0, [r4]
+	str r0, [r5]
 	b .L6
 .L12:
 @         i := i + 2;
-	ldr r4, =_i
-	ldr r0, [r4]
+	ldr r5, =_i
+	ldr r0, [r5]
 	add r0, r0, #2
-	str r0, [r4]
+	str r0, [r5]
 	b .L6
 .L5:
 @       i := i + 1
-	ldr r4, =_i
-	ldr r0, [r4]
+	ldr r5, =_i
+	ldr r0, [r5]
 	add r0, r0, #1
-	str r0, [r4]
+	str r0, [r5]
 .L6:
 @     print_num(i); newline()
 	ldr r0, =_i
@@ -131,7 +131,7 @@ pmain:
 	bl newline
 	b .L2
 .L1:
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 	.comm _i, 4, 4

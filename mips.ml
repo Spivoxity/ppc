@@ -60,6 +60,7 @@ module MIPS = struct
     let nregvars = 3
     let share_globals = true
     let sharing = 2
+    let addrmode = 0
     let fixed_frame = true
 
     (* MIPS register assignments:

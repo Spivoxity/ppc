@@ -54,54 +54,54 @@ def
 _choose:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   if k <= n then
-	ldr r4, [fp, #40]
-	ldr r0, [fp, #44]
-	cmp r4, r0
-	bgt .L5
+	ldr r5, [fp, #24]
+	ldr r0, [fp, #28]
+	cmp r5, r0
+	bgt .L4
 @     if k = 0 then
-	cmp r4, #0
-	bne .L7
+	cmp r5, #0
+	bne .L6
 @       print_string(buf); newline()
 	mov r1, #10
 	ldr r0, =_buf
 	bl print_string
 	bl newline
-	b .L5
-.L7:
+	b .L4
+.L6:
 @       choose(k, n-1);
-	ldr r0, [fp, #44]
+	ldr r0, [fp, #28]
 	sub r1, r0, #1
-	ldr r0, [fp, #40]
+	ldr r0, [fp, #24]
 	bl _choose
 @       buf[k-1] := letters[n-1];
-	ldr r4, [fp, #44]
-	ldr r5, [fp, #40]
+	ldr r5, [fp, #28]
+	ldr r6, [fp, #24]
 	ldr r0, =g1
-	add r0, r0, r4
+	add r0, r0, r5
 	ldrb r0, [r0, #-1]
 	ldr r1, =_buf
-	add r1, r1, r5
+	add r1, r1, r6
 	strb r0, [r1, #-1]
 @       choose(k-1, n-1);
-	sub r1, r4, #1
-	sub r0, r5, #1
+	sub r1, r5, #1
+	sub r0, r6, #1
 	bl _choose
-.L5:
-	ldmfd fp, {r4-r10, fp, sp, pc}
+.L4:
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @   choose(3, 6)
 	mov r1, #6
 	mov r0, #3
 	bl _choose
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 	.comm _buf, 10, 4

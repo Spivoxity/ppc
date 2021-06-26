@@ -178,53 +178,53 @@ _queens:
 	cmp r0, #8
 	bgt .L1
 @       j := 1; ok := true;
-	mov r4, #1
-	mov r6, #1
+	mov r5, #1
+	mov r7, #1
 .L8:
 @       while ok and (j < k) do
-	cmp r6, #0
+	cmp r7, #0
 	beq .L10
 	ldr r0, [fp, #40]
-	cmp r4, r0
+	cmp r5, r0
 	bge .L10
 @ 	q := choice(j);
-	mov r0, r4
-	ldr r10, [fp, #48]
+	mov r0, r5
+	ldr r4, [fp, #48]
 	ldr r1, [fp, #44]
 	blx r1
-	mov r5, r0
+	mov r6, r0
 @ 	ok := (q <> y) and (q+j <> y+k) and (q-j <> y-k);
-	ldr r7, [fp, #-4]
-	cmp r5, r7
+	ldr r8, [fp, #-4]
+	cmp r6, r8
 	beq .L12
-	ldr r8, [fp, #40]
-	add r0, r5, r4
-	add r1, r7, r8
+	ldr r9, [fp, #40]
+	add r0, r6, r5
+	add r1, r8, r9
 	cmp r0, r1
 	beq .L12
-	sub r0, r5, r4
-	sub r1, r7, r8
+	sub r0, r6, r5
+	sub r1, r8, r9
 	cmp r0, r1
-	beq .L12
-	mov r7, #1
+	mov r8, #0
+	movne r8, #1
 	b .L13
 .L12:
-	mov r7, #0
+	mov r8, #0
 .L13:
-	mov r6, r7
+	mov r7, r8
 @         j := j+1
-	add r4, r4, #1
+	add r5, r5, #1
 	b .L8
 .L10:
 @       if ok then queens(k+1, choice1) end;
-	cmp r6, #0
-	beq .L19
+	cmp r7, #0
+	beq .L18
 	mov r2, fp
 	ldr r1, =_choice1
 	ldr r0, [fp, #40]
 	add r0, r0, #1
 	bl _queens
-.L19:
+.L18:
 @       y := y+1
 	ldr r0, [fp, #-4]
 	add r0, r0, #1
@@ -238,76 +238,78 @@ _queens:
 _choice1:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @     if x = k then
-	ldr r4, [fp, #24]
-	ldr r0, [fp, #40]
-	ldr r1, [r4, #40]
+	ldr r5, [fp]
+	ldr r0, [fp, #24]
+	ldr r1, [r5, #40]
 	cmp r0, r1
-	bne .L22
+	bne .L21
 @       return y
-	ldr r0, [r4, #-4]
-	b .L20
-.L22:
+	ldr r0, [r5, #-4]
+	b .L19
+.L21:
 @       return choice(x)
-	ldr r4, [fp, #24]
-	ldr r0, [fp, #40]
-	ldr r10, [r4, #48]
-	ldr r1, [r4, #44]
+	ldr r0, [fp]
+	ldr r1, =44
+	add r5, r0, r1
+	ldr r0, [fp, #24]
+	ldr r4, [r5, #4]
+	ldr r1, [r5]
 	blx r1
-.L20:
-	ldmfd fp, {r4-r10, fp, sp, pc}
+.L19:
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 @ proc print(proc choice(x: integer): integer);
 _print:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4-r6, fp, ip, lr}
 	mov fp, sp
 @   x := 1;
-	mov r4, #1
-.L25:
+	mov r5, #1
+.L24:
 @   while x <= N do
-	cmp r4, #8
-	bgt .L27
+	cmp r5, #8
+	bgt .L26
 @     print_num(choice(x));
-	mov r0, r4
-	ldr r10, [fp, #44]
-	ldr r1, [fp, #40]
+	mov r0, r5
+	ldr r4, [fp, #28]
+	ldr r1, [fp, #24]
 	blx r1
 	bl print_num
 @     x := x+1
-	add r4, r4, #1
-	b .L25
-.L27:
+	add r5, r5, #1
+	b .L24
+.L26:
 @   newline()
 	bl newline
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg
 
 @ proc choice0(x: integer): integer;
 _choice0:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @   return 0
 	mov r0, #0
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 pmain:
 	mov ip, sp
-	stmfd sp!, {r4-r10, fp, ip, lr}
+	stmfd sp!, {r4, fp, ip, lr}
 	mov fp, sp
 @   queens(1, choice0)
 	mov r2, #0
 	ldr r1, =_choice0
 	mov r0, #1
 	bl _queens
-	ldmfd fp, {r4-r10, fp, sp, pc}
+	ldmfd fp, {r4, fp, sp, pc}
 	.ltorg
 
 @ End

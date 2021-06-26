@@ -1,7 +1,7 @@
 (* ppcu/coder.ml *)
 (* Copyright (c) 2017--18 J. M. Spivey *)
 
-module F(Target : Target.T) : sig
+module F(Tgt : Target.T) : sig
   val translate : Optree.optree list -> unit
   val output : unit -> unit
 end

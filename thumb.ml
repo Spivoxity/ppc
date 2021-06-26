@@ -55,6 +55,7 @@ module Thumb = struct
     let nregvars = 2
     let share_globals = true
     let sharing = 0
+    let addrmode = 1
     let fixed_frame = true
 
     (* ARM register assignments:
