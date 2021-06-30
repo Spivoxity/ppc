@@ -328,9 +328,9 @@ module AMD64 = struct
     let gen_move32 dst src = gen_move "movl" [resize 32 dst; src]
     let gen_move64 dst src = gen_move "movq" [resize 64 dst; src]
 
-    let is_addr (Node (op, _)) =
-      match op with
-          LOCAL _ | GLOBAL _ | OFFSET | LOADQ | NIL -> true
+    let is_addr =
+      function 
+          <LOCAL _> | <GLOBAL _> | <OFFSET, _, _> | <LOADQ, _> | <NIL> -> true
         | _ -> false
 
     let gen_reg_w w op rands =
