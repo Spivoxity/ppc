@@ -107,27 +107,27 @@ _search:
 _avail1:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r6, fp, ip, lr}
+	stmfd sp!, {r4-r8, fp, ip, lr}
 	mov fp, sp
 @     if x <> d then 
-	ldr r5, [fp, #24]
+	ldr r5, [fp, #32]
 	ldr r6, [fp]
 	ldr r0, [r6, #-4]
 	cmp r5, r0
 	beq .L14
 @       return avail(x)
-	ldr r0, =32
-	add r6, r6, r0
+	ldr r7, =32
 	mov r0, r5
-	ldr r4, [r6, #4]
-	ldr r1, [r6]
+	add r1, r6, r7
+	ldr r4, [r1, #4]
+	ldr r1, [r6, r7]
 	blx r1
 	b .L12
 .L14:
 @       return false
 	mov r0, #0
 .L12:
-	ldmfd fp, {r4-r6, fp, sp, pc}
+	ldmfd fp, {r4-r8, fp, sp, pc}
 	.ltorg
 
 @ proc avail0(x: integer): boolean;

@@ -179,49 +179,45 @@ _queens:
 	bge .L1
 @       if rank[y] and diagup[k+y] and diagdown[k+(N-1)-y] then
 	ldr r8, =_rank
-	add r9, r8, r5
-	ldrb r0, [r9]
+	ldrb r0, [r8, r5]
 	cmp r0, #0
 	beq .L10
-	ldr r10, =_diagup
-	ldr r0, [fp, #40]
-	add r1, r10, r0
-	add r1, r1, r5
-	ldrb r2, [r1]
-	cmp r2, #0
+	ldr r9, =_diagup
+	ldr r10, [fp, #40]
+	add r0, r9, r10
+	ldrb r1, [r0, r5]
+	cmp r1, #0
 	beq .L10
-	ldr r2, =_diagdown
-	add r3, r0, #7
-	sub r3, r3, r5
-	add r3, r2, r3
-	ldrb r4, [r3]
-	cmp r4, #0
+	ldr r1, =_diagdown
+	add r2, r10, #7
+	sub r2, r2, r5
+	ldrb r3, [r1, r2]
+	cmp r3, #0
 	beq .L10
 @ 	rank[y] := false; diagup[k+y] := false; diagdown[k+(N-1)-y] := false;
-	mov r4, #0
-	strb r4, [r9]
-	mov r4, #0
-	strb r4, [r1]
-	mov r1, #0
-	strb r1, [r3]
+	mov r3, #0
+	strb r3, [r8, r5]
+	mov r3, #0
+	strb r3, [r0, r5]
+	mov r0, #0
+	strb r0, [r1, r2]
 @ 	choice[k] := y; queens(k+1);
-	ldr r1, =_choice
-	str r5, [r1, r0, LSL #2]
-	mov r9, r0
-	add r0, r9, #1
-	mov r9, r2
+	ldr r0, =_choice
+	str r5, [r0, r10, LSL #2]
+	add r0, r10, #1
+	mov r10, r1
 	bl _queens
 @ 	rank[y] := true; diagup[k+y] := true; diagdown[k+(N-1)-y] := true;
 	mov r0, #1
 	strb r0, [r8, r5]
 	ldr r8, [fp, #40]
 	mov r0, #1
-	add r1, r10, r8
+	add r1, r9, r8
 	strb r0, [r1, r5]
 	mov r0, #1
 	add r1, r8, #7
 	sub r1, r1, r5
-	strb r0, [r9, r1]
+	strb r0, [r10, r1]
 .L10:
 @       y := y+1
 	add r5, r5, #1

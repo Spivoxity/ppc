@@ -61,40 +61,39 @@ _B:
 	mov fp, sp
 	sub sp, sp, #32
 @     k := k-1;
-	ldr r5, =24
-	ldr r0, [fp]
-	add r6, r0, r5
-	ldr r0, [r6]
+	ldr r5, [fp]
+	ldr r6, =24
+	ldr r0, [r5, r6]
 	sub r0, r0, #1
-	str r0, [r6]
+	str r0, [r5, r6]
 @     return A(k, B, x1, x2, x3, x4)
-	ldr r6, [fp]
-	ldr r0, =28
-	add r7, r6, r0
-	ldr r0, =36
-	add r8, r6, r0
-	ldr r0, =44
-	add r9, r6, r0
-	ldr r0, =52
-	add r10, r6, r0
-	ldr r0, [r10, #4]
+	ldr r5, [fp]
+	ldr r7, =28
+	ldr r8, =36
+	ldr r9, =44
+	ldr r10, =52
+	add r0, r5, r10
+	ldr r0, [r0, #4]
 	str r0, [sp, #24]
-	ldr r0, [r10]
+	ldr r0, [r5, r10]
 	str r0, [sp, #20]
-	ldr r0, [r9, #4]
+	add r0, r5, r9
+	ldr r0, [r0, #4]
 	str r0, [sp, #16]
-	ldr r0, [r9]
+	ldr r0, [r5, r9]
 	str r0, [sp, #12]
-	ldr r0, [r8, #4]
+	add r0, r5, r8
+	ldr r0, [r0, #4]
 	str r0, [sp, #8]
-	ldr r0, [r8]
+	ldr r0, [r5, r8]
 	str r0, [sp, #4]
-	ldr r0, [r7, #4]
+	add r0, r5, r7
+	ldr r0, [r0, #4]
 	str r0, [sp]
-	ldr r3, [r7]
-	mov r2, r6
+	ldr r3, [r5, r7]
+	mov r2, r5
 	ldr r1, =_B
-	ldr r0, [r6, r5]
+	ldr r0, [r5, r6]
 	bl _A
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg

@@ -105,11 +105,11 @@ _suffix1:
 	add r0, r0, r1
 	ldrb r0, [r0, #-1]
 	bl print_char
-	ldr r0, [fp]
-	ldr r1, =32
-	add r5, r0, r1
-	ldr r4, [r5, #4]
-	ldr r0, [r5]
+	ldr r5, [fp]
+	ldr r6, =32
+	add r0, r5, r6
+	ldr r4, [r0, #4]
+	ldr r0, [r5, r6]
 	blx r0
 	ldmfd fp, {r4-r6, fp, sp, pc}
 	.ltorg

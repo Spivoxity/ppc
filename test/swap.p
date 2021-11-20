@@ -42,16 +42,14 @@ _swap:
 	mov fp, sp
 @   t := a[i]; 
 	ldr r6, =_a
-	ldr r0, [fp, #32]
-	add r7, r6, r0, LSL #2
-	ldr r5, [r7]
+	ldr r7, [fp, #32]
+	ldr r5, [r6, r7, LSL #2]
 @   a[i] := a[j]; 
-	ldr r0, [fp, #36]
-	add r6, r6, r0, LSL #2
-	ldr r0, [r6]
-	str r0, [r7]
+	ldr r8, [fp, #36]
+	ldr r0, [r6, r8, LSL #2]
+	str r0, [r6, r7, LSL #2]
 @   a[j] := t
-	str r5, [r6]
+	str r5, [r6, r8, LSL #2]
 	ldmfd fp, {r4-r8, fp, sp, pc}
 	.ltorg
 

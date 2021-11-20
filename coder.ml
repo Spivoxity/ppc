@@ -76,15 +76,15 @@ module F(Targ : Target.T) = struct
       Emitter.map_regs (function r ->
         let r' = Alloc.get_reg r in Alloc.reserve_reg r'; r') v
 
+    let do_regs f v =
+      let g r = f r; r in
+      ignore (Emitter.map_regs g v)
+
     (* |release| -- release any register used by a value *)
-    let release v =
-      let f r = Alloc.release_reg r; r in
-      ignore (Emitter.map_regs f v)
+    let release v = do_regs Alloc.release_reg v
 
     (* |reserve| -- reserve any registers used by a value *)
-    let reserve v =
-      let f r = Alloc.reserve_reg r; r in
-      ignore (Emitter.map_regs f v)
+    let reserve v = do_regs Alloc.reserve_reg v
 
     (* |split_op| -- map "*mov/add" to the pair ("mov", "add") *)
     let split_op op =

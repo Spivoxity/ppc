@@ -17,8 +17,8 @@ let note_lfs s =
 rule token =
   parse
       "<"(['A'-'Z''a'-'z']+|'('[^')']+')' as s)  { OPEN s }
-    | "G<"(['A'-'Z''a'-'z']+|'('[^')']+')' as s)  { GOPEN s }
-    | [^'<''>''('')'',''@'' ''G''\n']+ as s  { WORD s }
+    | "#<"(['A'-'Z''a'-'z']+|'('[^')']+')' as s)  { GOPEN s }
+    | [^'<''>''('')'',''@'' ''#''\n']+ as s  { WORD s }
     | "(*"[^'\n']*"*)" as s	{ WORD s }
     | "->" as s			{ WORD s }
     | ">"			{ CLOSE }

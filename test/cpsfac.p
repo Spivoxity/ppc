@@ -71,12 +71,12 @@ _fac:
 _k1:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r6, fp, ip, lr}
+	stmfd sp!, {r4-r8, fp, ip, lr}
 	mov fp, sp
 @     r1 := n * r;
 	ldr r0, [fp]
 	ldr r6, [r0, #16]
-	ldr r0, [fp, #24]
+	ldr r0, [fp, #32]
 	mul r5, r6, r0
 @     print_num(n); print_string(" * "); print_num(r);
 	mov r0, r6
@@ -84,7 +84,7 @@ _k1:
 	mov r1, #4
 	ldr r0, =g1
 	bl print_string
-	ldr r0, [fp, #24]
+	ldr r0, [fp, #32]
 	bl print_num
 @     print_string(" = "); print_num(r1); newline();
 	mov r1, #4
@@ -94,14 +94,14 @@ _k1:
 	bl print_num
 	bl newline
 @     return k(r1) 
-	ldr r0, [fp]
-	ldr r1, =20
-	add r6, r0, r1
+	ldr r6, [fp]
+	ldr r7, =20
 	mov r0, r5
-	ldr r4, [r6, #4]
-	ldr r1, [r6]
+	add r1, r6, r7
+	ldr r4, [r1, #4]
+	ldr r1, [r6, r7]
 	blx r1
-	ldmfd fp, {r4-r6, fp, sp, pc}
+	ldmfd fp, {r4-r8, fp, sp, pc}
 	.ltorg
 
 @ proc id(r: integer): integer;

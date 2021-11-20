@@ -70,24 +70,22 @@ _pascal2:
 	cmp r6, r5
 	bgt .L7
 @       a[i][j] := a[i-1][j-1] + a[i-1][j];
-	add r0, fp, #-440
-	mov r1, #44
-	mul r1, r5, r1
-	add r7, r0, r1
-	lsl r8, r6, #2
-	add r0, r7, #-44
-	add r9, r0, r8
-	ldr r0, [r9, #-4]
-	ldr r1, [r9]
+	add r7, fp, #-440
+	mov r0, #44
+	mul r0, r5, r0
+	add r8, r7, r0
+	add r9, r8, #-44
+	add r0, r9, r6, LSL #2
+	ldr r0, [r0, #-4]
+	ldr r1, [r9, r6, LSL #2]
 	add r0, r0, r1
-	str r0, [r7, r8]
+	str r0, [r8, r6, LSL #2]
 @       print_char(' '); print_num(a[i][j]);
 	mov r0, #32
 	bl print_char
-	add r0, fp, #-440
-	mov r1, #44
-	mul r1, r5, r1
-	add r0, r0, r1
+	mov r0, #44
+	mul r0, r5, r0
+	add r0, r7, r0
 	ldr r0, [r0, r6, LSL #2]
 	bl print_num
 @       j := j+1

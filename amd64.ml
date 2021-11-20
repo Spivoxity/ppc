@@ -328,11 +328,6 @@ module AMD64 = struct
     let gen_move32 dst src = gen_move "movl" [resize 32 dst; src]
     let gen_move64 dst src = gen_move "movq" [resize 64 dst; src]
 
-    let is_addr =
-      function 
-          <LOCAL _> | <GLOBAL _> | <OFFSET, _, _> | <LOADQ, _> | <NIL> -> true
-        | _ -> false
-
     let gen_reg_w w op rands =
       gen_reg op (resize w (List.hd rands) :: List.tl rands)
 
@@ -416,7 +411,7 @@ module AMD64 = struct
         | <BINOP BitAnd, t1, t2> -> binary "*movl/andl" r t1 t2
         | <BINOP BitOr, t1, t2> -> binary "*movl/orl" r t1 t2
 
-        | _ when is_addr t ->
+        | <LOCAL _> | <GLOBAL _> | <OFFSET, _, _> | <LOADQ, _> | <NIL> ->
             let v1 = eval_addr t in
             gen_reg64 "leaq" [r; v1]
 

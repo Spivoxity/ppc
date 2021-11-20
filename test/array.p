@@ -45,7 +45,7 @@ foo
 	.section .text
 _foo:
 	mov ip, sp
-	stmfd sp!, {r4-r6, fp, ip, lr}
+	stmfd sp!, {r4-r8, fp, ip, lr}
 	mov fp, sp
 	sub sp, sp, #40
 @   print_string("foo"); newline();
@@ -64,17 +64,16 @@ _foo:
 	cmp r5, #10
 	bge .L4
 @     b[j] := b[j-2] + b[j-1];
-	add r0, fp, #-40
-	add r6, r0, r5, LSL #2
-	ldr r0, [r6, #-8]
-	ldr r1, [r6, #-4]
+	add r6, fp, #-40
+	add r7, r6, r5, LSL #2
+	ldr r0, [r7, #-8]
+	ldr r1, [r7, #-4]
 	add r0, r0, r1
-	str r0, [r6]
+	str r0, [r6, r5, LSL #2]
 @     print_char(' '); print_num(b[j]);
 	mov r0, #32
 	bl print_char
-	add r0, fp, #-40
-	ldr r0, [r0, r5, LSL #2]
+	ldr r0, [r6, r5, LSL #2]
 	bl print_num
 @     j := 1+j
 	add r5, r5, #1
@@ -82,7 +81,7 @@ _foo:
 .L4:
 @   newline();
 	bl newline
-	ldmfd fp, {r4-r6, fp, sp, pc}
+	ldmfd fp, {r4-r8, fp, sp, pc}
 	.ltorg
 
 pmain:
@@ -111,11 +110,11 @@ pmain:
 	bge .L8
 @     a[i] := a[i-2] + a[i-1];
 	ldr r7, =_a
-	add r6, r7, r6, LSL #2
-	ldr r0, [r6, #-8]
-	ldr r1, [r6, #-4]
+	add r8, r7, r6, LSL #2
+	ldr r0, [r8, #-8]
+	ldr r1, [r8, #-4]
 	add r0, r0, r1
-	str r0, [r6]
+	str r0, [r7, r6, LSL #2]
 @     print_char(' '); print_num(a[i]);
 	mov r0, #32
 	bl print_char

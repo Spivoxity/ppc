@@ -60,10 +60,9 @@ _reverse:
 	cmp r5, #0
 	beq .L4
 @     r := p^.tail; p^.tail := q;
-	ldr r0, =4
-	add r8, r5, r0
-	ldr r7, [r8]
-	str r6, [r8]
+	ldr r8, =4
+	ldr r7, [r5, r8]
+	str r6, [r5, r8]
 @     q := p; p := r
 	mov r6, r5
 	mov r5, r7

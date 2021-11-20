@@ -251,12 +251,12 @@ _choice1:
 	b .L19
 .L21:
 @       return choice(x)
-	ldr r0, [fp]
-	ldr r1, =44
-	add r5, r0, r1
+	ldr r5, [fp]
+	ldr r6, =44
 	ldr r0, [fp, #24]
-	ldr r4, [r5, #4]
-	ldr r1, [r5]
+	add r1, r5, r6
+	ldr r4, [r1, #4]
+	ldr r1, [r5, r6]
 	blx r1
 .L19:
 	ldmfd fp, {r4-r6, fp, sp, pc}

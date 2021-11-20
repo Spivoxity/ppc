@@ -105,20 +105,20 @@ _k1:
 _k2:
 	mov ip, sp
 	stmfd sp!, {r0-r1}
-	stmfd sp!, {r4-r6, fp, ip, lr}
+	stmfd sp!, {r4-r8, fp, ip, lr}
 	mov fp, sp
 @       proc k2(r2: integer): integer; begin return k(r1 + r2) end;
 	ldr r5, [fp]
-	ldr r0, [r5]
-	ldr r1, =20
-	add r6, r0, r1
+	ldr r6, [r5]
+	ldr r7, =20
 	ldr r0, [r5, #24]
-	ldr r1, [fp, #24]
+	ldr r1, [fp, #32]
 	add r0, r0, r1
-	ldr r4, [r6, #4]
-	ldr r1, [r6]
+	add r1, r6, r7
+	ldr r4, [r1, #4]
+	ldr r1, [r6, r7]
 	blx r1
-	ldmfd fp, {r4-r6, fp, sp, pc}
+	ldmfd fp, {r4-r8, fp, sp, pc}
 	.ltorg
 
 @   proc id(r: integer): integer; begin return r end;

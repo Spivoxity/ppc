@@ -62,10 +62,10 @@ let a_memory = a_global + a_local
 
 let rec arena g =
   match g with
-      G<LOCAL _> -> a_local
-    | G<GLOBAL _> -> a_global
-    | G<REGVAR _> -> a_regvar
-    | G<OFFSET, base, _> -> arena base
+      #<LOCAL _> -> a_local
+    | #<GLOBAL _> -> a_global
+    | #<REGVAR _> -> a_regvar
+    | #<OFFSET, base, _> -> arena base
     | _ -> a_memory
 
 (* |disjoint| -- test if two arenas are free of overlap *)
@@ -88,7 +88,7 @@ let kill p =
   let deleted = Stack.create () in
   let f key g =
     match g with
-	G<(LOADC|LOADW|LOADQ), a> -> 
+	#<(LOADC|LOADW|LOADQ), a> -> 
 	  if p a then Stack.push key deleted
       | _ -> () in
   Hashtbl.iter f node_table;
@@ -167,7 +167,7 @@ let rec visit g root =
 (* |build| -- convert dag to tree with no sharing at the root *)
 and build g =
   match g with
-      G<(CALL _ | CALLW _ | CALLQ _) as op, @(p::args)> ->
+      #<(CALL _ | CALLW _ | CALLQ _) as op, @(p::args)> ->
 	(* Don't share constant procedure addresses *)
 	let p' = 
 	  match p.g_op with
@@ -175,13 +175,13 @@ and build g =
             | _ -> visit p false in
         let args' = List.map (fun g1 -> visit g1 true) args in
 	<op, @(p'::args')>
-    | G<(STOREC|STOREW|STOREQ) as op, g1, g2, g3> ->
+    | #<(STOREC|STOREW|STOREQ) as op, g1, g2, g3> ->
         (* If dummy value is used, then make it share with g1 *)
 	let t1 = 
           if g3.g_refct > 1 then share g1 else visit g1 false in
 	g3.g_temp <- g1.g_temp;
 	<op, t1, visit g2 false>
-    | G<op, @rands> -> 
+    | #<op, @rands> -> 
 	<op, @(List.map (fun g1 -> visit g1 false) rands)>
 
 (* |share| -- convert dag to tree, sharing the root *)
@@ -199,37 +199,36 @@ and share g =
           <AFTER, <DEFTEMP n, d'>, make_temp g>
   end
 
-(* unshare -- duplicate a shared node that should be recomputed *)
+(* unshare -- duplicate a node if it is shared but should be recomputed *)
 let rec unshare g =
-  g.g_refct <- g.g_refct-1;
-  let g1 = newnode g.g_op g.g_rands in
-  g1.g_refct <- 1; inspect g1; g1
+  if g.g_refct = 1 then g else begin
+    g.g_refct <- g.g_refct-1;
+    let g1 = newnode g.g_op g.g_rands in
+    g1.g_refct <- 1; inspect g1; g1
+  end
 
 (* inspect -- find shared nodes that can be recomputed at no cost *)
 and inspect g =
   if not g.g_inspected then begin
     g.g_inspected <- true;
     match g with
-        G<(LOADC|LOADW), G<LOCAL _> as g1> ->
-          if g1.g_refct > 1 then
-            g.g_rands <- [unshare g1]
-      | G<(LOADC|LOADW), G<OFFSET, _, _> as g1> ->
+        #<(LOADC|LOADW), #<LOCAL _> as g1> ->
+          g.g_rands <- [unshare g1]
+      | #<(STOREC|STOREW), g1, #<LOCAL _> as g2, g3> ->
+          inspect g1; g.g_rands <- [g1; unshare g2; g3]
+
+      | #<(LOADC|LOADW), #<OFFSET, _, _> as g1> ->
           inspect g1;
-          if Metrics.addrmode > 0 && g1.g_refct > 1 then
-            g.g_rands <- [unshare g1]
-      | G<(STOREC|STOREW), g1, G<LOCAL _> as g2, g3> ->
-          inspect g1;
-          if g2.g_refct > 1 then
-            g.g_rands <- [g1; unshare g2; g3]
-      | G<(STOREC|STOREW), g1, G<OFFSET, _, _> as g2, g3> ->
+          if Metrics.addrmode > 0 then g.g_rands <- [unshare g1]
+      | #<(STOREC|STOREW), g1, #<OFFSET, _, _> as g2, g3> ->
           inspect g1; inspect g2;
-          if Metrics.addrmode > 0 && g2.g_refct > 1 then
-            g.g_rands <- [g1; unshare g2; g3]
-      | G<OFFSET, g1, G<BINOP Lsl, _, G<CONST _>> as g2> ->
+          if Metrics.addrmode > 0 then g.g_rands <- [g1; unshare g2; g3]
+
+      | #<OFFSET, g1, #<BINOP Lsl, _, #<CONST _>> as g2> ->
           inspect g1; inspect g2;
-          if Metrics.addrmode > 1 && g2.g_refct > 1 then
-            g.g_rands <- [g1; unshare g2]
-      | G<op, @rands> ->
+          if Metrics.addrmode > 1 then g.g_rands <- [g1; unshare g2]
+
+      | #<op, @rands> ->
           List.iter inspect rands
   end
   

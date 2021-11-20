@@ -521,12 +521,11 @@ _ColumnLink:
 @   q^.column := r; r^.size := r^.size+1
 	ldr r0, [fp, #32]
 	str r0, [r5, #16]
-	ldr r0, [fp, #32]
-	ldr r1, =12
-	add r6, r0, r1
-	ldr r0, [r6]
+	ldr r6, [fp, #32]
+	ldr r7, =12
+	ldr r0, [r6, r7]
 	add r0, r0, #1
-	str r0, [r6]
+	str r0, [r6, r7]
 	ldmfd fp, {r4-r8, fp, sp, pc}
 	.ltorg
 
@@ -573,11 +572,10 @@ _MakeArray:
 @       new(p^.head); p^.head^.down := p^.head; p^.head^.up := p^.head;
 	mov r0, #20
 	bl new
-	ldr r1, =28
-	add r8, r7, r1
-	str r0, [r8]
+	ldr r8, =28
+	str r0, [r7, r8]
 	str r0, [r0, #4]
-	ldr r8, [r8]
+	ldr r8, [r7, r8]
 	str r8, [r8]
 @       p^.prev := root^.prev; p^.next := root;
 	ldr r8, =_root
@@ -620,7 +618,8 @@ _MakeMove:
 	mov r0, #0
 	str r0, [fp, #-4]
 @   ColumnLink(boardCell[i][j], p);
-	add r1, fp, #-4
+	add r5, fp, #-4
+	mov r1, r5
 	ldr r0, =_boardCell
 	ldr r2, [fp, #24]
 	mov r3, #36
@@ -630,7 +629,7 @@ _MakeMove:
 	ldr r0, [r0, r2, LSL #2]
 	bl _ColumnLink
 @   ColumnLink(boardColumn[j][k], p);
-	add r1, fp, #-4
+	mov r1, r5
 	ldr r0, =_boardColumn
 	ldr r2, [fp, #28]
 	mov r3, #36
@@ -640,7 +639,7 @@ _MakeMove:
 	ldr r0, [r0, r2, LSL #2]
 	bl _ColumnLink
 @   ColumnLink(boardRow[i][k], p);
-	add r1, fp, #-4
+	mov r1, r5
 	ldr r0, =_boardRow
 	ldr r2, [fp, #24]
 	mov r3, #36
@@ -654,15 +653,15 @@ _MakeMove:
 	ldr r0, [fp, #24]
 	bl int_div
 	mov r1, #3
-	mov r5, r0
+	mov r6, r0
 	ldr r0, [fp, #28]
 	bl int_div
-	add r1, fp, #-4
-	mov r6, r0
+	mov r1, r5
+	mov r5, r0
 	ldr r0, =_boardBlock
 	mov r2, #3
-	mul r2, r5, r2
-	add r2, r2, r6
+	mul r2, r6, r2
+	add r2, r2, r5
 	mov r3, #36
 	mul r2, r2, r3
 	add r0, r0, r2
@@ -805,22 +804,19 @@ _Cover:
 	beq .L31
 @       r^.up^.down := r^.down; r^.down^.up := r^.up;
 	ldr r7, =4
-	add r8, r6, r7
-	ldr r9, =0
-	add r10, r6, r9
-	ldr r0, [r8]
-	ldr r1, [r10]
+	ldr r8, =0
+	ldr r0, [r6, r7]
+	ldr r1, [r6, r8]
 	str r0, [r1, r7]
-	ldr r0, [r10]
-	ldr r1, [r8]
-	str r0, [r1, r9]
+	ldr r0, [r6, r8]
+	ldr r1, [r6, r7]
+	str r0, [r1, r8]
 @       r^.column^.size := r^.column^.size-1; r := r^.right
-	ldr r0, [r6, #16]
-	ldr r1, =12
-	add r7, r0, r1
-	ldr r0, [r7]
+	ldr r7, [r6, #16]
+	ldr r8, =12
+	ldr r0, [r7, r8]
 	sub r0, r0, #1
-	str r0, [r7]
+	str r0, [r7, r8]
 	ldr r6, [r6, #12]
 	b .L29
 .L31:
@@ -870,12 +866,11 @@ _Uncover:
 	ldr r0, [r6, r8]
 	str r6, [r0, r7]
 @       r^.column^.size := r^.column^.size+1; r := r^.left
-	ldr r0, [r6, #16]
-	ldr r1, =12
-	add r7, r0, r1
-	ldr r0, [r7]
+	ldr r7, [r6, #16]
+	ldr r8, =12
+	ldr r0, [r7, r8]
 	add r0, r0, #1
-	str r0, [r7]
+	str r0, [r7, r8]
 	ldr r6, [r6, #8]
 	b .L36
 .L38:
