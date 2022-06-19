@@ -204,6 +204,9 @@ let rec unshare g =
   if g.g_refct = 1 then g else begin
     g.g_refct <- g.g_refct-1;
     let g1 = newnode g.g_op g.g_rands in
+    (* Duplicating node |g| may cause its children to become shared
+       when they too should be recomputed.  The recursive call to
+       |inspect| deals with that case neatly. *)
     g1.g_refct <- 1; inspect g1; g1
   end
 

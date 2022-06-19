@@ -411,7 +411,7 @@ module AMD64 = struct
         | <BINOP BitAnd, t1, t2> -> binary "*movl/andl" r t1 t2
         | <BINOP BitOr, t1, t2> -> binary "*movl/orl" r t1 t2
 
-        | <LOCAL _> | <GLOBAL _> | <OFFSET, _, _> | <LOADQ, _> | <NIL> ->
+        | <LOCAL _> | <GLOBAL _> | <OFFSET, _, _> ->
             let v1 = eval_addr t in
             gen_reg64 "leaq" [r; v1]
 
