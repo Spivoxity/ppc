@@ -24,3 +24,4 @@ b.s
 b.test
 ppc-thumb
 b.r86
+ppc-arm64

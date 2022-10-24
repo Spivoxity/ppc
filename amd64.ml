@@ -68,7 +68,7 @@ module AMD64 = struct
     let addrmode = 2
     let fixed_frame = true
 
-    (* Names the the 64-bit registers *)
+    (* Names for the 64-bit registers *)
     let reg_names =
       [| "%rax"; "%rcx"; "%rdx"; "%rbx"; "%rsp"; "%rbp"; "%rsi"; "%rdi";
          "%r8"; "%r9"; "%r10"; "%r11"; "%r12"; "%r13"; "%r14"; "%r15";

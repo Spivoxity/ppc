@@ -4,7 +4,7 @@ include config.mk
 
 all: $(PPC)
 
-ALLARCH = ppc-amd64 ppc-mips ppc-arm ppc-thumb ppc-risc86
+ALLARCH = ppc-amd64 ppc-mips ppc-arm ppc-thumb ppc-risc86 ppc-arm64
 
 TOOLS = tools
 
@@ -39,6 +39,7 @@ test: force
 	@echo "  'make test0'  to compare assembly code for ARM"
 	@echo "  'make test1'  to test the native backend"
 	@echo "  'make test2a' to test with qemu-arm"
+	@echo "  'make test2b' to test with qemu-aarch64"
 	@echo "  'make test2t' to test with qemu-arm (thumb mode)"
 	@echo "  'make test2m' to test with qemu-mips"
 	@echo "  'make test2r' to test risc86 on amd64"
@@ -76,6 +77,7 @@ pas0.o : pas0.c
 	gcc -c pas0.c
 
 test2a : $(TESTSRC:%=test2a-%)
+test2b : $(TESTSRC:%=test2b-%)
 test2t : $(TESTSRC:%=test2t-%)
 test2m : $(TESTSRC:%=test2m-%)
 
@@ -94,6 +96,19 @@ test2a-% : ppc-arm pas0-arm.o force
 
 pas0-arm.o: pas0.c
 	$(GCC-ARM) -c $< -o $@
+
+GCC-ARM64 = aarch64-linux-gnu-gcc
+
+test2b-% : ppc-arm64 pas0-arm64.o force
+	@echo "*** Test $*.p"
+	./ppc-arm64 -d 1 $(OPT) test/$*.p >b.s
+	$(GCC-ARM64) b.s pas0-arm64.o -static -o b.out 
+	qemu-aarch64 ./b.out >b.test
+	sed -n $(SCRIPT2) test/$*.p | diff - b.test
+	@echo "*** Passed"; echo
+
+pas0-arm64.o: pas0.c
+	$(GCC-ARM64) -c $< -o $@
 
 GCC-THUMB = arm-linux-gnueabihf-gcc -marm -march=armv6 -mthumb-interwork
 
@@ -147,7 +162,8 @@ ML = $(MLGEN) optree.ml tgen.ml tgen.mli simp.ml share.ml share.mli \
 	jumpopt.ml check.ml check.mli dict.ml dict.mli lexer.mli \
 	main.ml main.mli optree.mli tree.ml coder.mli coder.ml \
 	tree.mli util.ml mips.ml simp.mli target.mli \
-	regs.mli regs.ml jumpopt.mli arm.ml risc86.ml amd64.ml thumb.ml
+	regs.mli regs.ml jumpopt.mli arm.ml risc86.ml amd64.ml thumb.ml \
+	arm64.ml
 
 clean: force
 	rm -f *.cmi *.cmo *.o *.output b.out b.s b.test
