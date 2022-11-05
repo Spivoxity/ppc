@@ -1,13 +1,6 @@
 (* ppcu/arm64.ml *)
 (* Copyright (c) 2017--22 J. M. Spivey *)
 
-(* TODO
-Don't round up max_reg
-Use conditional set instruction for boolean comparisons
-Correct fits definitions
-Use zero register
-*)
-
 (* Code generator for ARM64 *)
 
 open Target
@@ -90,13 +83,13 @@ old sp:   arg 8  /
       [| "w0"; "w1"; "w2"; "w3"; "w4"; "w5"; "w6"; "w7";
           "w8"; "w9"; "w10"; "w11"; "w12"; "w13"; "w14"; "w15";
           "w16"; "w17"; "w18"; "w19"; "w20"; "w21"; "w22"; "w23";
-          "w24"; "w25"; "w26"; "w27"; "w28"; "?fp"; "?lr"; "?sp" |]
+          "w24"; "w25"; "w26"; "w27"; "w28"; "?fp"; "?lr"; "?sp"; "wzr" |]
 
     let reg64_names =
       [| "x0"; "x1"; "x2"; "x3"; "x4"; "x5"; "x6"; "x7";
           "x8"; "x9"; "x10"; "x11"; "x12"; "x13"; "x14"; "x15";
           "x16"; "ip0"; "ip1"; "x19"; "x20"; "x21"; "x22"; "x23";
-          "x24"; "x25"; "x26"; "x27"; "x28"; "fp"; "lr"; "sp" |]
+          "x24"; "x25"; "x26"; "x27"; "x28"; "fp"; "lr"; "sp"; "xzr" |]
 
     let reg_names = reg64_names
 
@@ -104,6 +97,7 @@ old sp:   arg 8  /
     let r_sp = Reg 31
     let r_lr = Reg 30
     let r_ip0 = Reg 17
+    let r_zero = Reg 32
 
     let volatile = [Reg 0; Reg 1; Reg 2; Reg 3; Reg 4; Reg 5; Reg 6; Reg 7;
         Reg 8; Reg 9; Reg 10; Reg 11; Reg 12; Reg 13; Reg 14; Reg 15]
@@ -121,27 +115,26 @@ old sp:   arg 8  /
     type operand =		  (* VALUE	  ASM SYNTAX       *)
         Const of symbol * int32   (* lab+val	  #lab+val         *)
       | Register of reg * int	  (* [reg]	  reg	           *)
-      | SignExt of reg		  (* sext([reg])  reg, SXTW        *)
       | Shift of reg * int        (* [reg]<<n     reg, LSL #n      *)
       | Index of reg * symbol * int  (* [reg]+val    [reg, #val]   *)
       | Index2 of reg * reg * int (* [r1]+[r2]<<n [r1, r2, SXTW #n] *)
       | Global of symbol 	  (* lab	  lab	           *)
       | Label of codelab	  (* lab	  lab              *)
       | LitSym of symbol          (* lab          =lab             *)
-      | LitVal of symbol * int32  (* lab+val	  =lab+val         *)
+      | LitVal of symbol * int32  (* lab+val	  =(lab+val)       *)
+      | Quote of string
 
     let reg64 r = Register (r, 64)
     let reg32 r = Register (r, 32)
     let reg r = Register (r, 0)
 
-    let anyreg = Register (R_any, 0)
-    let anytemp = Register (R_temp, 0)
+    let anyreg = reg R_any
+    let anytemp = reg R_temp
 
     let map_regs f =
       function
           Const (x, n) -> Const (x, n)
         | Register (r, w) -> Register (f r, w)
-        | SignExt r -> SignExt (f r)
         | Shift (r, n) -> Shift (f r, n)
         | Index (r, x, n) -> Index (f r, x, n)
         | Index2 (r1, r2, n) -> Index2 (f r1, f r2, n)
@@ -149,9 +142,11 @@ old sp:   arg 8  /
         | Label lab -> Label lab
         | LitSym x -> LitSym x
         | LitVal (x, n) -> LitVal (x, n)
+        | Quote q -> Quote q
 
     let const n = Const (nosym, n)
     let literal n = LitVal (nosym, n)
+    let quote fmt args = Quote (sprintf fmt args)
 
     let reg_of =
       function
@@ -170,8 +165,6 @@ old sp:   arg 8  /
             fMeta "#$" [fNum32 (sym_value x n)]
         | Register (r, w) ->
             if w = 32 then fReg32 r else fReg r
-        | SignExt r ->
-            fMeta "$, SXTW" [fReg32 r]
         | Shift (reg, n) ->
             fMeta "$, LSL #$" [fReg32 reg; fNum n]
         | Index (reg, sym, off) ->
@@ -187,6 +180,7 @@ old sp:   arg 8  /
         | Label lab -> fMeta ".$" [fLab lab]
         | LitSym x -> fMeta "=$" [fSym x]
         | LitVal (x, n) -> fMeta "=$" [fNum32 (sym_value x n)]
+        | Quote q -> fStr q
 
     (* |preamble| -- emit start of assembler file *)
     let preamble () =
@@ -334,16 +328,11 @@ old sp:   arg 8  /
 
     (* |fits_offset| -- test for fitting in offset field of address *)
     let fits_offset shamt x =
-      let limit = 4096 in
-      (-limit < x && x < limit)
+      (-256 < x && x < 4096 lsl shamt)
 
     (* |fits_immed| -- test for fitting in immediate field *)
     let fits_immed x =
-      (* A conservative approximation, using shifts instead of rotates *)
-      let rec reduce r =
-        if Int32.logand r (int32 3) <> zero then r
-        else reduce (Int32.shift_right_logical r 2) in
-      x = zero || x > zero && reduce x < int32 256
+      (Int32.zero <= x && x < int32 4096)
 
     (* |fits_move| -- test for fitting in immediate move *)
     let fits_move x = fits_immed x || fits_immed (Int32.lognot x)
@@ -372,25 +361,22 @@ old sp:   arg 8  /
 
       (* Comparison with boolean result *)
       and compare op t1 t2 =
-        let lab = label () in
         let v1 = eval_reg t1 anyreg in
         let v2 = eval_rand t2 fits_add in
-        let v = gen_reg32 "mov" [r; const one] in
         gen "cmp" [v1; v2];
-        gen op [Label lab];
-        emit "mov" [v; const zero];
-        emit_lab lab;
-        v in
+        gen_reg32 "cset" [r; Quote op] in
 
       match t with
-          <CONST k> when fits_move k -> 
+          <CONST k> when k = int32 0 ->
+            gen_move32 [r; reg32 r_zero]
+        | <CONST k> when fits_move k -> 
             gen_reg32 "mov" [r; const k]
         | <CONST k> ->
             gen_reg32 "ldr" [r; literal k]
         | <SYMBOL (x, n)> ->
             gen_reg32 "ldr" [r; LitVal (x, int32 n)]
         | <NIL> ->
-            gen_reg64 "mov" [r; const zero]
+            gen_move64 [r; reg64 r_zero]
         | <LOCAL (x, n)> ->
             let off = int32 (!frame + n + 16) in
             if fits_add (Int32.add (int32 x.a_val) off) then
@@ -432,10 +418,14 @@ old sp:   arg 8  /
         | <OFFSET, t1, <CONST n>> when fits_add n ->
             let v1 = eval_reg t1 anyreg in
             gen_reg64 "add" [r; v1; const n]
+        | <OFFSET, t1, <BINOP Lsl, t2, <CONST n>>> when n <= int32 4 ->
+            let v1 = eval_reg t1 anyreg in
+            let v2 = eval_reg t2 anyreg in
+            gen_reg "add" [r; v1; v2; quote "SXTW $" [fNum32 n]]
         | <OFFSET, t1, t2> ->
             let v1 = eval_reg t1 anyreg in
             let v2 = eval_reg t2 anyreg in
-            gen_reg64 "add" [r; v1; SignExt (reg_of v2)]
+            gen_reg64 "add" [r; v1; v2; Quote "SXTW"]
 
         | <BINOP Plus, t1, t2> -> binary "add" t1 t2
         | <BINOP Minus, t1, t2> -> binary "sub" t1 t2
@@ -453,12 +443,14 @@ old sp:   arg 8  /
             let v2 = eval_reg t2 anyreg in
             gen_reg32 "mul" [r; v1; v2]
 
-        | <BINOP Eq, t1, t2> -> compare "beq" t1 t2
-        | <BINOP Neq, t1, t2> -> compare "bne" t1 t2
-        | <BINOP Gt, t1, t2> -> compare "bgt" t1 t2
-        | <BINOP Geq, t1, t2> -> compare "bge" t1 t2
-        | <BINOP Lt, t1, t2> -> compare "blt" t1 t2
-        | <BINOP Leq, t1, t2> -> compare "ble" t1 t2
+        | <BINOP Eq, t1, t2> -> compare "eq" t1 t2
+        | <BINOP Neq, t1, t2> -> compare "ne" t1 t2
+        | <BINOP Gt, t1, t2> -> compare "gt" t1 t2
+        | <BINOP Geq, t1, t2> -> compare "ge" t1 t2
+        | <BINOP Lt, t1, t2> -> compare "lt" t1 t2
+        | <BINOP Leq, t1, t2> -> compare "le" t1 t2
+        | <BINOP EqA, t1, t2> -> compare "eq" t1 t2
+        | <BINOP NeqA, t1, t2> -> compare "ne" t1 t2
 
         | <BOUND, t1, t2> ->
             let lab = label () in
@@ -575,7 +567,7 @@ old sp:   arg 8  /
               Alloc.def_temp n (reg_of v1)
             end else begin
               (* A short-circuit condition: assume no spills *)
-              let v1 = eval_reg t1 (Register (r, 0)) in
+              let v1 = eval_reg t1 (reg r) in
               release v1
             end
 
@@ -605,6 +597,18 @@ old sp:   arg 8  /
 
         | <JUMP lab> -> gen "b" [Label lab]
 
+        | <JUMPC (Eq, lab), t1, <CONST z>> when z = Int32.zero ->
+            let v1 = eval_reg t1 anyreg in
+            gen "cbz" [v1; Label lab]
+        | <JUMPC (Neq, lab), t1, <CONST z>> when z = Int32.zero ->
+            let v1 = eval_reg t1 anyreg in
+            gen "cbnz" [v1; Label lab]
+        | <JUMPC (EqA, lab), t1, <NIL>> ->
+            let v1 = eval_reg t1 anyreg in
+            gen "cbz" [v1; Label lab]
+        | <JUMPC (NeqA, lab), t1, <NIL>> ->
+            let v1 = eval_reg t1 anyreg in
+            gen "cbnz" [v1; Label lab]
         | <JUMPC (Eq, lab), t1, t2> -> condj "beq" lab t1 t2
         | <JUMPC (Lt, lab), t1, t2> -> condj "blt" lab t1 t2
         | <JUMPC (Gt, lab), t1, t2> -> condj "bgt" lab t1 t2
@@ -619,9 +623,9 @@ old sp:   arg 8  /
             let v1 = eval_reg t1 anyreg in
             emit "cmp" [v1; const (int32 (List.length table))];
             gen "bhs" [Label deflab];
-            emit "adr" [Register (r_ip0, 64); Label tbl];
-            gen "ldr" [Register (r_ip0, 64); Index2 (r_ip0, reg_of v1, 3)];
-            emit "br" [Register (r_ip0, 64)];
+            emit "adr" [reg64 r_ip0; Label tbl];
+            gen "ldr" [reg64 r_ip0; Index2 (r_ip0, reg_of v1, 3)];
+            emit "br" [reg64 r_ip0];
             emit ".p2align 3" [];
             emit_lab tbl;
             List.iter (fun lab -> emit ".quad" [Label lab]) table
@@ -636,7 +640,7 @@ old sp:   arg 8  /
         | <ARG i, t1> when i < 8 ->
             let r = Reg i in
             spill_temps move_reg [r];
-            ignore (eval_reg t1 (Register (r, 0)))
+            ignore (eval_reg t1 (reg r))
         | <ARG i, t1> when i >= 8 ->
             let v1 = eval_reg t1 anyreg in
             gen "str" [v1; Index (r_sp, nosym, 8*i-64)]

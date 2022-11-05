@@ -106,6 +106,7 @@ module ARM = struct
       | Label of codelab	  (* lab	  lab              *)
       | LitSym of symbol          (* lab          =lab             *)
       | LitVal of symbol * int32  (* lab+val	  =lab+val         *)
+      | Quote of string           (* -            txt              *)
 
     let anyreg = Register R_any
     let anytemp = Register R_temp
@@ -121,9 +122,11 @@ module ARM = struct
         | Label lab -> Label lab
         | LitSym x -> LitSym x
         | LitVal (x, n) -> LitVal (x, n)
+        | Quote s -> Quote s
 
     let const n = Const (nosym, n)
     let literal n = LitVal (nosym, n)
+    let quote fmt args = Quote (sprintf fmt args)
 
     let reg_of =
       function
@@ -153,6 +156,7 @@ module ARM = struct
         | Label lab -> fMeta ".$" [fLab lab]
         | LitSym x -> fMeta "=$" [fSym x]
         | LitVal (x, n) -> fMeta "=$" [fNum32 (sym_value x n)]
+        | Quote s -> fStr s
 
     (* |preamble| -- emit start of assembler file *)
     let preamble () =
@@ -356,6 +360,10 @@ module ARM = struct
             (* Allow add for negative constants *)
             let v1 = eval_reg t1 anyreg in
             gen_reg "add" [r; v1; const n]
+        | <OFFSET, t1, <BINOP Lsl, t2, <CONST n>>> when n < int32 32 ->
+            let v1 = eval_reg t1 anyreg in
+            let v2 = eval_reg t2 anyreg in
+            gen_reg "add" [r; v1; v2; quote "LSL $" [fNum32 n]]
         | <OFFSET, t1, t2> -> binary "add" t1 t2
 
         | <BINOP Plus, t1, t2> -> binary "add" t1 t2
