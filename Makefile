@@ -61,7 +61,15 @@ test0-%: ppc-arm force
 	-sed -n $(SCRIPT1) test/$*.p | diff -u -b - b.s
 	@echo
 
-# test1 -- compile tests and execute with QEMU-mips
+test0b: $(TESTSRC:%=test0b-%)
+
+test0b-%: ppc-arm64 force
+	@echo "*** Test $*.p"
+	./ppc-arm64 $(OPT) test/$*.p >b.s
+	-diff -u -b test-arm64/$*.s b.s
+	@echo
+
+# test1 -- compile tests and execute on host
 test1 : $(TESTSRC:%=test1-%)
 
 test1-% : pas0.o force
@@ -153,6 +161,11 @@ promote-%: force
 	./ppc-arm $(OPT) test/$*.p >b.s
 	sed -f promote.sed test/$*.p >test/$*.new
 	mv test/$*.new test/$*.p
+
+promote2b: $(TESTSRC:%=promote2b-%)
+
+promote2b-%: force
+	./ppc-arm64 $(OPT) test/$*.p >test-arm64/$*.s
 
 force:
 
