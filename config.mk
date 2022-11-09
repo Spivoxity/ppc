@@ -6,6 +6,8 @@ PPCFLAGS-x86_64 = -pic
 PPC-armv7l = ppc-arm
 ASFLAGS-armv7l = -march=armv6
 
+PPC-aarch64 = ppc-arm64
+
 PPC-mips = ppc-mips
 ASFLAGS-mips = -msoft-float
 
