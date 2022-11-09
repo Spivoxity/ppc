@@ -326,6 +326,11 @@ old sp:   arg 8  /
 
     (* Tests for fitting in various immediate fields *)
 
+    let rec ct_zeros x =
+      if x = Int32.zero then 32
+      else if Int32.logand x Int32.one <> Int32.zero then 0
+      else 1 + ct_zeros (Int32.shift_right_logical x 1)
+
     (* |fits_offset| -- test for fitting in offset field of address *)
     let fits_offset shamt x =
       (-256 < x && x < 4096 lsl shamt)
@@ -340,6 +345,16 @@ old sp:   arg 8  /
     (* |fits_add| -- test for fitting in immediate add *)
     let fits_add x = fits_immed x || fits_immed (Int32.neg x)
 
+    let fits_shift x =
+      (Int32.zero <= x && x < int32 32)
+
+    let fits_mask x =
+      x != Int32.zero && x != Int32.minus_one &&
+      (let p = ct_zeros x in
+        let q = ct_zeros (Int32.lognot (Int32.shift_right_logical x p)) in
+        x = Int32.shift_left
+                (Int32.shift_right_logical Int32.minus_one (32-q)) p)
+
     (* The main part of the code generator consists of a family of functions
        eval_X t, each generating code for a tree t, leaving the value in
        a register, or as an operand for another instruction, etc. *)
@@ -349,9 +364,9 @@ old sp:   arg 8  /
       (* returns |Register| *)
 
       (* Binary operation *)
-      let binary op t1 t2 =
+      let binary fits op t1 t2 =
         let v1 = eval_reg t1 anyreg in
-        let v2 = eval_rand t2 fits_immed in
+        let v2 = eval_rand t2 fits in
         gen_reg32 op [r; v1; v2]
 
       (* Unary operation *)
@@ -427,15 +442,15 @@ old sp:   arg 8  /
             let v2 = eval_reg t2 anyreg in
             gen_reg64 "add" [r; v1; v2; Quote "SXTW"]
 
-        | <BINOP Plus, t1, t2> -> binary "add" t1 t2
-        | <BINOP Minus, t1, t2> -> binary "sub" t1 t2
-        | <BINOP And, t1, t2> -> binary "and" t1 t2
-        | <BINOP Or, t1, t2> -> binary "orr" t1 t2
-        | <BINOP Lsl, t1, t2> -> binary "lsl" t1 t2
-        | <BINOP Lsr, t1, t2> -> binary "lsr" t1 t2
-        | <BINOP Asr, t1, t2> -> binary "asr" t1 t2
-        | <BINOP BitAnd, t1, t2> -> binary "and" t1 t2
-        | <BINOP BitOr, t1, t2> -> binary "orr" t1 t2
+        | <BINOP Plus, t1, t2> -> binary fits_add "add" t1 t2
+        | <BINOP Minus, t1, t2> -> binary fits_add "sub" t1 t2
+        | <BINOP And, t1, t2> -> binary fits_mask "and" t1 t2
+        | <BINOP Or, t1, t2> -> binary fits_mask "orr" t1 t2
+        | <BINOP Lsl, t1, t2> -> binary fits_shift "lsl" t1 t2
+        | <BINOP Lsr, t1, t2> -> binary fits_shift "lsr" t1 t2
+        | <BINOP Asr, t1, t2> -> binary fits_shift "asr" t1 t2
+        | <BINOP BitAnd, t1, t2> -> binary fits_mask "and" t1 t2
+        | <BINOP BitOr, t1, t2> -> binary fits_mask "orr" t1 t2
 
         | <BINOP Times, t1, t2> ->
             (* The mul instruction needs both operands in registers *)
@@ -481,8 +496,9 @@ old sp:   arg 8  /
     and eval_rand t fits =
       (* returns |Const| or |Register| *)
       match t with
-          <CONST k> when fits k -> const k
-        | <NIL> -> const zero
+          <CONST z> when z == Int32.zero -> reg32 r_zero
+        | <CONST k> when fits k -> const k
+        | <NIL> -> reg64 r_zero
         | <BINOP Lsl, t1, <CONST n>> when n < int32 32 ->
             let v1 = eval_reg t1 anyreg in
             Shift (reg_of v1, Int32.to_int n)
